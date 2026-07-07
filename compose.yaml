@@ -1,0 +1,67 @@
+version: "3.8"
+
+services:
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ResourceTracker_app
+    restart: always
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 3306      
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      API_KEY: ${API_KEY}
+      GOOGLE_CHAT_WEBHOOK: ${GOOGLE_CHAT_WEBHOOK}
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - appnet
+    volumes:
+      - ./keys:/keys:ro
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: ResourceTracker_client
+    restart: always
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - appnet  
+    stdin_open: true # Ważne dla Reacta w Dockerze
+    tty: true
+  db:
+    image: mysql:8
+    container_name: mysql_local
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    command: --default-time-zone='Europe/Warsaw'
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./init:/docker-entrypoint-initdb.d
+    networks:
+      - appnet
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:
+
+networks:
+  appnet:
+    driver: bridge
