@@ -2,21 +2,6 @@ import fs from "fs/promises";
 
 export async function InsertMailInfo(db, hostingId,maile) {
   console.log("START InsertMailInfo");
-
-  // await ftp.downloadTo(
-  //   "./rozmiary_mail.json",
-  //   "/rozmiary_mail.json"
-  // );
-
-  // console.log("Pobrano rozmiary_mail.json z FTP");
-
-  // const content = await fs.readFile(
-  //   "./rozmiary_mail.json",
-  //   "utf8"
-  // );
-
-  // const maile = JSON.parse(content);
-
   for (const mail of maile) {
 
     const [rows] = await db.query(

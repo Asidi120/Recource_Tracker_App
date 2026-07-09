@@ -1,18 +1,7 @@
 import fs from "fs/promises";
 
 export async function InsertHostInfo(db,data) {
-  // console.log("START InsertHostInfo");
-  // await ftp.downloadTo(
-  //   "./nazwa_konta_hostingowego.json",
-  //   "/nazwa_konta_hostingowego.json"
-  // );
-
-  // const content = await fs.readFile(
-  //   "./nazwa_konta_hostingowego.json",
-  //   "utf8"
-  // );
-
-  // const data = JSON.parse(content);
+  console.log("START InsertHostInfo");
 
   const [rows] = await db.query(
     "SELECT id FROM KONTO_HOSTINGOWE WHERE login = ?",

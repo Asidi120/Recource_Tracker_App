@@ -4,32 +4,11 @@ import ping from "ping";
 
 export async function InsertStatusInfo(db, hostingId, strony) {
   console.log("START InsertStatusInfo");
-
-  // await ftp.downloadTo(
-  //   "./status_stron.json",
-  //   "/status_stron.json"
-  // );
-
-  // console.log("Pobrano status_stron.json z FTP");
-
-  // const content = await fs.readFile(
-  //   "./status_stron.json",
-  //   "utf8"
-  // );
-
-  // const strony = JSON.parse(content);
-
   console.log("Dane z status_stron.json:", strony);
 
   for (const strona of strony) {
     const techs = await detectTech(strona.domena);
     console.log(`Technologie wykryte dla ${strona.domena}:`, techs);
-    // const [rowsTech] = await db.query(
-    //   "SELECT id FROM TECHNOLOGIE WHERE nazwa = ?",
-    //   [techs[0] || "Nieznany"]
-    // );
-
-    // const JezykID = rowsTech[0]?.id || null;
 
     const [rows] = await db.query(
       `SELECT id

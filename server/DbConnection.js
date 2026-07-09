@@ -1,5 +1,4 @@
 import mysql from "mysql2/promise";
-//import ftp from "basic-ftp";
 
 // MYSQL CONNECTION
 

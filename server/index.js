@@ -8,6 +8,7 @@ import { InsertDataBaseInfo } from "./InsertDataBaseInfo.js";
 import { InsertStatusInfo } from "./InsertStatusInfo.js";
 import { CheckHostingID } from "./CheckHostingID.js"; 
 import { StartApi } from "./ApiSender.js";
+import { GetDatabaseSize } from "./GetDBSize.js";
 
 
 const app = express();
@@ -16,7 +17,7 @@ app.use(express.json());
 
 StartApi(app);
 
-const PORT = 5000;
+const PORT = process.env.PORT;
 const TAJNY_TOKEN = process.env.API_KEY;
 
 const checkAuth = (req, res, next) => {
@@ -85,6 +86,8 @@ app.post("/api/status/post", checkAuth, async (req, res) => {
     const hostingId = await CheckHostingID(db, nick, panel);
     await InsertStatusInfo(db, hostingId, dane);
     res.status(200).json({ success: true, message: "Status zapisany" });
+    const size = await GetDatabaseSize(db);
+    console.log(`Rozmiar bazy: ${size.pretty} (${size.bytes} B)`);
   } catch (err) {
     res.status(500).json({ error: err.message });
   } finally {
@@ -92,8 +95,6 @@ app.post("/api/status/post", checkAuth, async (req, res) => {
   }
 });
 
-
-// Start serwera na porcie 5000
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Serwer API działa lokalnie na porcie ${PORT}`);
   console.log(`Teraz uruchom ngrok: ngrok http --url=twoja-nazwa.ngrok-free.app ${PORT}`);

@@ -45,7 +45,7 @@ export async function sendGoogleChat(message) {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                text: message, //text dla google, content dla discorda
+                text: message,
             }),
         });
     } catch (err) {

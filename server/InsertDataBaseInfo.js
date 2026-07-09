@@ -3,20 +3,6 @@ import fs from "fs/promises";
 export async function InsertDataBaseInfo(db, hostingId,bazy) {
   console.log("START InsertDataBaseInfo");
 
-  // await ftp.downloadTo(
-  //   "./bazy_danych.json",
-  //   "/bazy_danych.json"
-  // );
-
-  // console.log("Pobrano bazy_danych.json z FTP");
-
-  // const content = await fs.readFile(
-  //   "./bazy_danych.json",
-  //   "utf8"
-  // );
-
-  // const bazy = JSON.parse(content);
-
   for (const baza of bazy) {
 
     const [rows] = await db.query(

@@ -5,13 +5,6 @@ export async function InsertBasicInfo(db, hostingId, zasoby, serwer, login) {
   console.log("START InsertBasicInfo");
 
   try {
-    // 1. Pobieranie pliku z FTP
-    // await ftp.downloadTo("./zuzycie_zasobow.json", "/zuzycie_zasobow.json");
-    // console.log("Pobrano zuzycie_zasobow.json z FTP");
-
-    // const content = await fs.readFile("./zuzycie_zasobow.json", "utf8");
-    // const zasoby = JSON.parse(content);
-
     // 2. Zapisywanie ogólnego zużycia zasobów
     await db.query(
       `INSERT IGNORE INTO ZUZYCIE_ZASOBOW (
@@ -43,7 +36,6 @@ export async function InsertBasicInfo(db, hostingId, zasoby, serwer, login) {
     );
 
     // 3. Sprawdzenie, czy usługa typu 'serwer' już istnieje dla tego hostingu
-    // Jako nazwę podajemy process.env.FTP_HOST (tak jak robisz to w INSERT poniżej)
     const [rows] = await db.query(
       `SELECT id 
        FROM USLUGI 
@@ -54,14 +46,12 @@ export async function InsertBasicInfo(db, hostingId, zasoby, serwer, login) {
     let uslugaId;
 
     if (rows.length === 0) {
-      // Jeśli usługa nie istnieje -> Tworzymy ją
       const [result] = await db.query(
         `INSERT INTO USLUGI (hosting_id, nazwa, typ) VALUES (?, ?, 'serwer')`,
         [hostingId, serwer],
       );
-      uslugaId = result.insertId; // Usunięto słowo kluczowe 'let'
+      uslugaId = result.insertId;
     } else {
-      // Jeśli usługa istnieje -> Pobieramy jej istniejące ID
       uslugaId = rows[0].id;
     }
 
