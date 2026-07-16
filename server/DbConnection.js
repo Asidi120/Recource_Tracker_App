@@ -21,32 +21,3 @@ export async function DbConnection() {
     throw error;
   }
 }
-
-// FTPS CONNECTION
-
-// export async function FTPconnect() {
-//   const client = new ftp.Client();
-
-//   client.ftp.verbose = true;
-
-//   try {
-//     console.log("Connecting to FTPS...");
-
-//     await client.access({
-//       host: process.env.FTP_HOST,
-//       port: 21,
-//       user: process.env.FTP_USER,
-//       password: process.env.FTP_PASSWORD,
-
-//       // FTPS
-//       secure: true,
-//     });
-
-//     console.log("FTPS connected");
-
-//     return client;
-//   } catch (error) {
-//     console.error("FTPS connection error:", error);
-//     throw error;
-//   }
-// }

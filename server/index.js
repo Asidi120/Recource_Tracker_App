@@ -87,7 +87,7 @@ app.post("/api/status/post", checkAuth, async (req, res) => {
     await InsertStatusInfo(db, hostingId, dane);
     res.status(200).json({ success: true, message: "Status zapisany" });
     const size = await GetDatabaseSize(db);
-    console.log(`Rozmiar bazy: ${size.pretty} (${size.bytes} B)`);
+    console.log(`Rozmiar bazy: ${size} MB`);
   } catch (err) {
     res.status(500).json({ error: err.message });
   } finally {
@@ -97,5 +97,4 @@ app.post("/api/status/post", checkAuth, async (req, res) => {
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Serwer API działa lokalnie na porcie ${PORT}`);
-  console.log(`Teraz uruchom ngrok: ngrok http --url=twoja-nazwa.ngrok-free.app ${PORT}`);
 });

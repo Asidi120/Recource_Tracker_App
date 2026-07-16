@@ -1,42 +1,55 @@
 import express from "express";
 import cors from "cors";
 import { DbConnection } from "./DbConnection.js";
+import { predictUntilEndOfYear, calculateAverageGrowth30Days, predictFullDate } from "./SizePrediction.js";
+import { fillMissingData, fillMissingResourceData } from "./FillMissingData.js";
+import { getHostingLimits } from "./HostingLimits.js";
 
 export function StartApi(app) {
   app.use(cors());
   app.use(express.json());
   app.get("/api/zasoby", async (req, res) => {
     let db;
-
     try {
       db = await DbConnection();
 
       const [rows] = await db.query(`
-SELECT
-  k.id AS hosting_id,
-  k.login,
-  z.data_i_czas,
-  z.zuzycie_cpu_procent,
-  z.zuzycie_ramu_mb,
-  z.limit_ramu_mb,
-  z.zuzycie_ramu_procent,
-  z.zuzycie_dysku_mb,
-  z.limit_dysku_mb,
-  z.zuzycie_dysku_procent,
-  z.zuzycie_procesow,
-  z.limit_procesow
-FROM KONTO_HOSTINGOWE k
-JOIN ZUZYCIE_ZASOBOW z
-  ON z.hosting_id = k.id
-JOIN (
-  SELECT hosting_id, MAX(data_i_czas) AS max_data
-  FROM ZUZYCIE_ZASOBOW
-  GROUP BY hosting_id
-) latest
-  ON z.hosting_id = latest.hosting_id
- AND z.data_i_czas = latest.max_data;
+        SELECT
+          k.id AS hosting_id,
+          k.login,
+          z.data_i_czas,
+          z.zuzycie_cpu_procent,
+          z.zuzycie_ramu_mb,
+          z.limit_ramu_mb,
+          z.zuzycie_ramu_procent,
+          z.zuzycie_dysku_mb,
+          z.limit_dysku_mb,
+          z.zuzycie_dysku_procent,
+          z.zuzycie_procesow,
+          z.limit_procesow
+        FROM KONTO_HOSTINGOWE k
+        JOIN ZUZYCIE_ZASOBOW z
+          ON z.hosting_id = k.id
+        JOIN (
+          SELECT hosting_id, MAX(data_i_czas) AS max_data
+          FROM ZUZYCIE_ZASOBOW
+          GROUP BY hosting_id
+        ) latest
+          ON z.hosting_id = latest.hosting_id
+          AND z.data_i_czas = latest.max_data;
     `);
-
+      // const history = rows;
+      // const averageGrowth30Days = calculateAverageGrowth30Days(history);
+      // let predictedFullDate = null;
+      // if (history[0].typ === 'serwer') {
+      //   predictedFullDate = predictFullDate(history[0].data_i_czas, Number(history[0].rozmiar_mb), limitMap[history[0].hosting_id], averageGrowth30Days);
+      // }
+      // res.json({
+      //     historia: historyWithMissing,
+      //     predykcja: prediction,
+      //     srednie_wzrost: averageGrowth30Days,
+      //     przewidziana_data_pelna: predictedFullDate
+      // });
       res.json(rows);
     } catch (err) {
       console.error(err);
@@ -234,8 +247,22 @@ ON jp.id = ut.technologia_id
     `,
         [req.params.id],
       );
+      const history = rows;
+      const averageGrowth30Days = calculateAverageGrowth30Days(history);
+      const limitMap = await getHostingLimits();
+      let predictedFullDate = null;
+      if (history[0].typ === 'serwer') {
+        predictedFullDate = predictFullDate(history[0].data_i_czas, Number(history[0].rozmiar_mb), limitMap[history[0].hosting_id], averageGrowth30Days);
+      }
+      const prediction = predictUntilEndOfYear(history);
+      const historyWithMissing = fillMissingData(history);
 
-      res.json(rows);
+      res.json({
+          historia: historyWithMissing,
+          predykcja: prediction,
+          srednie_wzrost: averageGrowth30Days,
+          przewidziana_data_pelna: predictedFullDate
+      });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Błąd serwera" });
@@ -260,7 +287,34 @@ ON jp.id = ut.technologia_id
     `,
         [req.params.id],
       );
-      res.json(rows);
+      
+const history = rows.map((row) => ({
+  ...row,
+  zuzycie_dysku_mb: row.zuzycie_dysku_mb,
+}));
+
+const averageGrowth30Days = calculateAverageGrowth30Days(history,"zuzycie_dysku_mb");
+
+const prediction = predictUntilEndOfYear(history,"zuzycie_dysku_mb","zuzycie_dysku_prognoza");
+
+//const historyWithMissing = fillMissingResourceData(history);
+const historyWithMissing = history;
+const limitMap = await getHostingLimits();
+
+const predictedFullDate = predictFullDate(
+  history[0].data_i_czas,
+  Number(history[0].zuzycie_dysku_mb),
+  limitMap[req.params.id],
+  averageGrowth30Days
+);
+
+res.json({
+  historia: historyWithMissing,
+  predykcja: prediction,
+  srednie_wzrost: averageGrowth30Days,
+  przewidziana_data_pelna: predictedFullDate,
+});
+
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Błąd serwera" });

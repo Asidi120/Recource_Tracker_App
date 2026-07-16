@@ -8,6 +8,8 @@ function StronaGlowna() {
   const [hostingAccounts, setHostingAccounts] = useState([]);
   const [filteredHostingID, setFilteredHostingID] = useState("");
   const [isLooping, setIsLooping] = useState(false); 
+  const [averageGrowth30Days, setAverageGrowth30Days] = useState(null);
+  const [predictedFullDate, setPredictedFullDate] = useState(null);
 
   const loadData = () => {
     setIsLooping(true);
@@ -18,6 +20,7 @@ function StronaGlowna() {
       })
       .then((data) => {
         setHostingAccounts(data);
+
         setIsLooping(false);
       })
       .catch((err) => {

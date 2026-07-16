@@ -16,6 +16,7 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       API_KEY: ${API_KEY}
+      PORT: ${PORT}
       GOOGLE_CHAT_WEBHOOK: ${GOOGLE_CHAT_WEBHOOK}
     ports:
       - "5000:5000"
@@ -24,8 +25,6 @@ services:
         condition: service_healthy
     networks:
       - appnet
-    volumes:
-      - ./keys:/keys:ro
   client:
     build:
       context: ./client
