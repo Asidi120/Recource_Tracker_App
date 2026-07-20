@@ -86,8 +86,6 @@ app.post("/api/status/post", checkAuth, async (req, res) => {
     const hostingId = await CheckHostingID(db, nick, panel);
     await InsertStatusInfo(db, hostingId, dane);
     const info = await InsertDBSize(db);
-    console.log(`Średni przyrost bazy: ${info[0]} MB`);
-    console.log(`Przewidywana data zapełnienia przeznaczonego dysku: ${info[1]}`)
     res.status(200).json({ success: true, message: "Status zapisany" });
   } catch (err) {
     res.status(500).json({ error: err.message });

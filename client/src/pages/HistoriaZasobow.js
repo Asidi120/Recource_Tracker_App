@@ -90,26 +90,38 @@ export default function HistoriaZasobow() {
     });
   }, [prediction, dateFrom, dateTo]);
 
-  // Przygotowanie danych do wykresu dysku bez mutowania stanu
   let lastSize = null;
 
-  // Używamy [...filteredHistoria].reverse(), aby nie mutować tablicy w pamięci
-  const daneWykresu = [
-    ...[...filteredHistoria].reverse(),
-    ...filteredPrediction,
-  ].map((item) => {
-    if (item.zuzycie_dysku_mb !== null) {
-      lastSize = item.zuzycie_dysku_mb;
-    }
+  let lastDisk = null;
+  let lastCpu = null;
+  let lastRam = null;
+  let lastProcesses = null;
 
-    const isMissing =
-      item.zuzycie_dysku_mb === null && item.zuzycie_dysku_prognoza == null;
+  const daneWykresu = [...filteredHistoria, ...filteredPrediction].map(
+    (item) => {
+      if (item.zuzycie_dysku_mb != null) lastDisk = item.zuzycie_dysku_mb;
 
-    return {
-      ...item,
-      brak_danych: isMissing ? lastSize : null,
-    };
-  });
+      if (item.zuzycie_cpu_procent != null) lastCpu = item.zuzycie_cpu_procent;
+
+      if (item.zuzycie_ramu_mb != null) lastRam = item.zuzycie_ramu_mb;
+
+      if (item.zuzycie_procesow != null) lastProcesses = item.zuzycie_procesow;
+
+      return {
+        ...item,
+        brak_dysk:
+          item.zuzycie_dysku_mb == null && item.zuzycie_dysku_prognoza == null
+            ? lastDisk
+            : null,
+
+        brak_cpu: item.zuzycie_cpu_procent == null ? lastCpu : null,
+
+        brak_ram: item.zuzycie_ramu_mb == null ? lastRam : null,
+
+        brak_procesy: item.zuzycie_procesow == null ? lastProcesses : null,
+      };
+    },
+  );
   console.log("Dane wykresu dysku:", daneWykresu);
   if (loading) {
     return (
@@ -178,7 +190,7 @@ export default function HistoriaZasobow() {
                 new Date(value).toLocaleString("pl-PL").slice(0, -3)
               }
               formatter={(value, name) => {
-                if (name === "brak_danych") {
+                if (name === "brak_dysk") {
                   return ["Brak danych", "Rozmiar"];
                 }
                 return [
@@ -195,7 +207,7 @@ export default function HistoriaZasobow() {
               activeDot={{ r: 5 }}
             />
             <Line
-              dataKey="brak_danych"
+              dataKey="brak_dysk"
               stroke="transparent"
               dot={{ r: 2, fill: "red" }}
               activeDot={false}
@@ -257,7 +269,7 @@ export default function HistoriaZasobow() {
       <div className="history-chart">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
-            data={filteredHistoria}
+            data={daneWykresu}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
@@ -286,6 +298,13 @@ export default function HistoriaZasobow() {
               dot={false}
               activeDot={{ r: 5 }}
             />
+            <Line
+              dataKey="brak_cpu"
+              stroke="transparent"
+              dot={{ r: 2, fill: "red" }}
+              activeDot={false}
+              isAnimationActive={false}
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -295,7 +314,7 @@ export default function HistoriaZasobow() {
       <div className="history-chart">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
-            data={filteredHistoria}
+            data={daneWykresu}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
@@ -328,6 +347,13 @@ export default function HistoriaZasobow() {
               dot={false}
               activeDot={{ r: 5 }}
             />
+            <Line
+              dataKey="brak_ram"
+              stroke="transparent"
+              dot={{ r: 2, fill: "red" }}
+              activeDot={false}
+              isAnimationActive={false}
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -337,7 +363,7 @@ export default function HistoriaZasobow() {
       <div className="history-chart">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
-            data={filteredHistoria}
+            data={daneWykresu}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
@@ -362,6 +388,13 @@ export default function HistoriaZasobow() {
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 3 }}
+            />
+            <Line
+              dataKey="brak_procesy"
+              stroke="transparent"
+              dot={{ r: 2, fill: "red" }}
+              activeDot={false}
+              isAnimationActive={false}
             />
           </LineChart>
         </ResponsiveContainer>

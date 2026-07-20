@@ -51,7 +51,7 @@ async function CalculateAverageGrowthDB(db) {
   return (last.rozmiar_mb - first.rozmiar_mb) / days;
 }
 
-async function DBLimitPrediction(db, maxSize) {
+export async function DBLimitPrediction(db, maxSize) {
   const averageGrowth = await CalculateAverageGrowthDB(db);
 
   if (averageGrowth <= 0) {

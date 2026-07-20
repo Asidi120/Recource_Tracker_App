@@ -2,8 +2,9 @@ import express from "express";
 import cors from "cors";
 import { DbConnection } from "./DbConnection.js";
 import { predictUntilEndOfYear, calculateAverageGrowth30Days, predictFullDate } from "./SizePrediction.js";
-import { fillMissingData, fillMissingResourceData } from "./FillMissingData.js";
+import { fillMissingData, fillMissingResourceData, fillMissingStatusData } from "./FillMissingData.js";
 import { getHostingLimits } from "./HostingLimits.js";
+import { InsertDBSize,DBLimitPrediction } from "./GetDBSize.js";
 
 export function StartApi(app) {
   app.use(cors());
@@ -38,18 +39,6 @@ export function StartApi(app) {
           ON z.hosting_id = latest.hosting_id
           AND z.data_i_czas = latest.max_data;
     `);
-      // const history = rows;
-      // const averageGrowth30Days = calculateAverageGrowth30Days(history);
-      // let predictedFullDate = null;
-      // if (history[0].typ === 'serwer') {
-      //   predictedFullDate = predictFullDate(history[0].data_i_czas, Number(history[0].rozmiar_mb), limitMap[history[0].hosting_id], averageGrowth30Days);
-      // }
-      // res.json({
-      //     historia: historyWithMissing,
-      //     predykcja: prediction,
-      //     srednie_wzrost: averageGrowth30Days,
-      //     przewidziana_data_pelna: predictedFullDate
-      // });
       res.json(rows);
     } catch (err) {
       console.error(err);
@@ -190,20 +179,28 @@ ON jp.id = ut.technologia_id
     ORDER BY
         kh.login,
         u.nazwa,
-        ru.data_i_czas DESC;
+        ru.data_i_czas desc;
       `);
-      const history=rows;
-      const historyWithMissing = fillMissingData(history);
-      const grouped = {};
-      for (const row of historyWithMissing) {
-        if (!grouped[row.usluga_id]) grouped[row.usluga_id] = [];
-        grouped[row.usluga_id].push(row);
-      }
+  const history = rows;
+  const grouped = {};
+  for (const row of history) {
+    if (!grouped[row.usluga_id]) {
+      grouped[row.usluga_id] = [];
+    }
 
-      const result = Object.values(grouped)
-        .flatMap(rows => rows.slice(0, 200));
+    grouped[row.usluga_id].push(row);
+  }
 
-      res.json(result);
+
+  let result = [];
+
+  for (const usluga_id in grouped) {
+    const filled = fillMissingData(grouped[usluga_id]);
+
+    result.push(...filled.slice(0,200));
+  }
+
+  res.json(result);
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Błąd serwera" });
@@ -326,12 +323,11 @@ ON z.hosting_id = kh.id
         [req.params.id],
       );
       
-const history = rows //tu zmienialam jak cos 
+const history = rows
 const averageGrowth30Days = calculateAverageGrowth30Days(history,"zuzycie_dysku_mb");
 const prediction = predictUntilEndOfYear(history,"zuzycie_dysku_mb","zuzycie_dysku_prognoza");
 
-//const historyWithMissing = fillMissingResourceData(history);
-const historyWithMissing = history;
+const historyWithMissing = fillMissingResourceData(history);
 const limitMap = await getHostingLimits();
 
 const predictedFullDate = predictFullDate(
@@ -408,7 +404,9 @@ ON jp.id = ut.technologia_id
     `,
         [req.params.hosting_id, req.params.usluga_id],
       );
-      res.json(rows);
+      const historyWithMissing = fillMissingStatusData(rows.reverse());
+
+      res.json(historyWithMissing);
       console.log(
         "Pobrano historię statusów dla hosting_id:",
         req.params.hosting_id,
@@ -422,4 +420,40 @@ ON jp.id = ut.technologia_id
       if (db) await db.end();
     }
   });
+
+app.get("/api/rozmiar_bazy", async (req,res)=>{
+  let db;
+
+  try {
+    db = await DbConnection();
+
+    const [rows] = await db.query(`
+      SELECT 
+        rozmiar_mb,
+        data_i_czas
+      FROM ROZMIAR_BAZA_DANYCH
+      ORDER BY data_i_czas DESC
+      LIMIT 1
+    `);
+
+    const prediction = await DBLimitPrediction(
+      db,
+      Number(process.env.MAX_DB_SIZE)
+    );
+
+    res.json({
+      rozmiar_mb: rows[0].rozmiar_mb,
+      data_i_czas: rows[0].data_i_czas,
+      sredni_wzrost: prediction.averageGrowth,
+      przewidywana_data: prediction.predictedDate
+    });
+
+  } catch(err){
+    res.status(500).json({error:err.message});
+  }
+  finally{
+    if(db) await db.end();
+  }
+});
+
 }

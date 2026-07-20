@@ -5,27 +5,53 @@ import { useNavigate } from "react-router-dom";
 
 function StronaGlowna() {
   const navigate = useNavigate();
+
   const [hostingAccounts, setHostingAccounts] = useState([]);
   const [filteredHostingID, setFilteredHostingID] = useState("");
-  const [isLooping, setIsLooping] = useState(false); 
+  const [isLooping, setIsLooping] = useState(false);
 
-  const loadData = () => {
+  const lastUpdate = hostingAccounts[0];
+
+
+  const loadData = async () => {
     setIsLooping(true);
-    fetch("/api/zasoby")
-      .then((res) => {
-        if (!res.ok) throw new Error("Błąd sieci serwera");
-        return res.json();
-      })
-      .then((data) => {
-        setHostingAccounts(data);
 
-        setIsLooping(false);
-      })
-      .catch((err) => {
-        console.error("Błąd API:", err);
-        setIsLooping(false);
-      });
+    try {
+      const zasobyResponse = await fetch("/api/zasoby");
+
+      if (!zasobyResponse.ok)
+        throw new Error("Błąd sieci serwera");
+
+      const zasoby = await zasobyResponse.json();
+
+      setHostingAccounts(zasoby);
+
+
+      // pobranie informacji o bazie
+      const bazaResponse = await fetch("/api/rozmiar_bazy");
+
+      if (!bazaResponse.ok)
+        throw new Error("Błąd pobierania rozmiaru bazy");
+
+
+      const baza = await bazaResponse.json();
+
+
+      console.log("===== INFORMACJE O BAZIE =====");
+      console.log("Aktualny rozmiar:", baza.rozmiar_mb, "MB");
+      console.log("Data pomiaru:", baza.data_i_czas);
+      console.log("Średni wzrost:", baza.sredni_wzrost, "MB/dzień");
+      console.log("Przewidywana data pełna:", baza.przewidywana_data);
+      console.log("==============================");
+
+
+    } catch(err) {
+      console.error("Błąd API:", err);
+    } finally {
+      setIsLooping(false);
+    }
   };
+
 
   useEffect(() => {
     loadData(); 
@@ -33,19 +59,16 @@ function StronaGlowna() {
     return () => clearInterval(interval); 
   }, []);
 
-  const lastUpdate = hostingAccounts[0];
-
   const refreshData = async () => {
   setIsLooping(true);
 
   try {
-    await fetch("/api/odswiez", {
-      method: "POST"
-    });
+    await loadData();
 
-    loadData();
-  } catch (err) {
+  } catch(err) {
     console.error(err);
+
+  } finally {
     setIsLooping(false);
   }
 };

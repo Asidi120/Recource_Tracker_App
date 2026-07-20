@@ -644,6 +644,11 @@ body {
     font-weight: bold;
 }
 
+.no-data {
+    color: #666;
+    font-weight: bold;
+}
+
 .button {
     border: none;
     padding: 10px 18px;
