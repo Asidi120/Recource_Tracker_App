@@ -123,14 +123,27 @@ export function StartApi(app) {
         u.nazwa,
         u.typ,
         GROUP_CONCAT(DISTINCT jp.nazwa ORDER BY jp.nazwa SEPARATOR ', ') AS technologie,
-        aktualny.rozmiar_mb AS aktualny_rozmiar_mb,
+        aktualny.rozmiar_mb AS rozmiar_mb,
         ru.data_i_czas,
-        ru.rozmiar_mb
+        ru.rozmiar_mb,
+        z.limit_dysku_mb
 
     FROM KONTO_HOSTINGOWE kh
 
     JOIN USLUGI u
         ON u.hosting_id = kh.id
+    LEFT JOIN (
+    SELECT z1.hosting_id, z1.limit_dysku_mb
+    FROM ZUZYCIE_ZASOBOW z1
+    JOIN (
+        SELECT hosting_id, MAX(data_i_czas) AS max_data
+        FROM ZUZYCIE_ZASOBOW
+        GROUP BY hosting_id
+    ) z2
+    ON z1.hosting_id = z2.hosting_id
+    AND z1.data_i_czas = z2.max_data
+) z
+ON z.hosting_id = kh.id
 
     LEFT JOIN USLUGI_TECHNOLOGIE ut
 ON ut.usluga_id = u.id
@@ -179,7 +192,18 @@ ON jp.id = ut.technologia_id
         u.nazwa,
         ru.data_i_czas DESC;
       `);
-      res.json(rows);
+      const history=rows;
+      const historyWithMissing = fillMissingData(history);
+      const grouped = {};
+      for (const row of historyWithMissing) {
+        if (!grouped[row.usluga_id]) grouped[row.usluga_id] = [];
+        grouped[row.usluga_id].push(row);
+      }
+
+      const result = Object.values(grouped)
+        .flatMap(rows => rows.slice(0, 200));
+
+      res.json(result);
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Błąd serwera" });
@@ -204,9 +228,22 @@ ON jp.id = ut.technologia_id
           GROUP_CONCAT(DISTINCT jp.nazwa ORDER BY jp.nazwa SEPARATOR ', ') AS technologie,
           aktualny.rozmiar_mb AS aktualny_rozmiar_mb,
           ru.data_i_czas,
-          ru.rozmiar_mb
+          ru.rozmiar_mb,
+          z.limit_dysku_mb
       FROM KONTO_HOSTINGOWE kh
       JOIN USLUGI u ON u.hosting_id = kh.id
+      LEFT JOIN (
+    SELECT z1.hosting_id, z1.limit_dysku_mb
+    FROM ZUZYCIE_ZASOBOW z1
+    JOIN (
+        SELECT hosting_id, MAX(data_i_czas) AS max_data
+        FROM ZUZYCIE_ZASOBOW
+        GROUP BY hosting_id
+    ) z2
+    ON z1.hosting_id = z2.hosting_id
+    AND z1.data_i_czas = z2.max_data
+) z
+ON z.hosting_id = kh.id
       LEFT JOIN USLUGI_TECHNOLOGIE ut
       ON ut.usluga_id = u.id
       LEFT JOIN TECHNOLOGIE jp
@@ -281,20 +318,16 @@ ON jp.id = ut.technologia_id
           z.zuzycie_cpu_procent,
           z.zuzycie_ramu_mb,
           z.zuzycie_dysku_mb,
-          z.zuzycie_procesow
+          z.zuzycie_procesow,
+          z.limit_dysku_mb
       FROM ZUZYCIE_ZASOBOW z
       WHERE z.hosting_id = ?
     `,
         [req.params.id],
       );
       
-const history = rows.map((row) => ({
-  ...row,
-  zuzycie_dysku_mb: row.zuzycie_dysku_mb,
-}));
-
+const history = rows //tu zmienialam jak cos 
 const averageGrowth30Days = calculateAverageGrowth30Days(history,"zuzycie_dysku_mb");
-
 const prediction = predictUntilEndOfYear(history,"zuzycie_dysku_mb","zuzycie_dysku_prognoza");
 
 //const historyWithMissing = fillMissingResourceData(history);

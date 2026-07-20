@@ -9,6 +9,7 @@ import {
   Tooltip,
   CartesianGrid,
   ResponsiveContainer,
+  ReferenceLine,
 } from "recharts";
 import "../styles/Style.css";
 
@@ -93,7 +94,7 @@ function SzczegolyHistoriiUslugi() {
       brak_danych: isMissing ? lastSize : null,
     };
   });
-
+  const limitDysku = historia[0]?.limit_dysku_mb;
   return (
     <div className="history-details-container">
       <h2 className="history-details-title">Szczegóły historii usługi</h2>
@@ -162,7 +163,7 @@ function SzczegolyHistoriiUslugi() {
 
             <Tooltip
               labelFormatter={(value) =>
-                new Date(value).toLocaleString("pl-PL")
+                new Date(value).toLocaleString("pl-PL").slice(0, -3)
               }
               formatter={(value, name) => {
                 if (name === "brak_danych") {
@@ -206,27 +207,42 @@ function SzczegolyHistoriiUslugi() {
               dot={false}
               activeDot={{ r: 5 }}
             />
+            {historia[0].typ === "serwer" && (
+              <ReferenceLine
+                y={limitDysku * 0.9}
+                stroke="orange"
+                strokeDasharray="5 5"
+                label="90%"
+              />
+            )}
+
+            {historia[0].typ === "serwer" && (
+              <ReferenceLine
+                y={limitDysku}
+                stroke="red"
+                strokeDasharray="5 5"
+                label="Limit"
+              />
+            )}
           </LineChart>
         </ResponsiveContainer>
       </div>
 
+      <h3>Średni wzrost w ciągu ostatnich 30 dni:</h3>
+      <p className="history-details-subtitle">
+        {averageGrowth30Days != null ? averageGrowth30Days.toFixed(2) : "0"} MB
+        / dzień
+        <br />
+      </p>
       <h3>
-        Średni wzrost w ciągu ostatnich 30 dni:
+        {predictedFullDate ? `Przewidywana data osiągnięcia limitu:` : null}
       </h3>
-        <p className="history-details-subtitle">
-          {averageGrowth30Days != null ? averageGrowth30Days.toFixed(2) : "0.00"} MB
-          <br />
-        </p>
-      <h3>
+      <p className="history-details-subtitle">
         {predictedFullDate
-          ? `Przewidywana data osiągnięcia limitu:`: null}
-      </h3>
-          <p className="history-details-subtitle">
-          {predictedFullDate
           ? `${new Date(predictedFullDate).toLocaleDateString("pl-PL")}`
           : null}
-          <br/>
-          </p>
+        <br />
+      </p>
       <h3 className="history-table-title">Historia zmian</h3>
 
       <div className="history-table-wrapper">

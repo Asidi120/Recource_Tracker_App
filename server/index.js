@@ -8,7 +8,7 @@ import { InsertDataBaseInfo } from "./InsertDataBaseInfo.js";
 import { InsertStatusInfo } from "./InsertStatusInfo.js";
 import { CheckHostingID } from "./CheckHostingID.js"; 
 import { StartApi } from "./ApiSender.js";
-import { GetDatabaseSize } from "./GetDBSize.js";
+import { InsertDBSize} from "./GetDBSize.js";
 
 
 const app = express();
@@ -85,15 +85,18 @@ app.post("/api/status/post", checkAuth, async (req, res) => {
     db = await DbConnection();
     const hostingId = await CheckHostingID(db, nick, panel);
     await InsertStatusInfo(db, hostingId, dane);
+    const info = await InsertDBSize(db);
+    console.log(`Średni przyrost bazy: ${info[0]} MB`);
+    console.log(`Przewidywana data zapełnienia przeznaczonego dysku: ${info[1]}`)
     res.status(200).json({ success: true, message: "Status zapisany" });
-    const size = await GetDatabaseSize(db);
-    console.log(`Rozmiar bazy: ${size} MB`);
   } catch (err) {
     res.status(500).json({ error: err.message });
   } finally {
     if (db) await db.end();
   }
 });
+
+
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Serwer API działa lokalnie na porcie ${PORT}`);

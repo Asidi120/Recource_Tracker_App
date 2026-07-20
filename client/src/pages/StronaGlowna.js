@@ -8,8 +8,6 @@ function StronaGlowna() {
   const [hostingAccounts, setHostingAccounts] = useState([]);
   const [filteredHostingID, setFilteredHostingID] = useState("");
   const [isLooping, setIsLooping] = useState(false); 
-  const [averageGrowth30Days, setAverageGrowth30Days] = useState(null);
-  const [predictedFullDate, setPredictedFullDate] = useState(null);
 
   const loadData = () => {
     setIsLooping(true);
@@ -31,7 +29,7 @@ function StronaGlowna() {
 
   useEffect(() => {
     loadData(); 
-    const interval = setInterval(loadData, 180000); 
+    const interval = setInterval(loadData, 60000); 
     return () => clearInterval(interval); 
   }, []);
 

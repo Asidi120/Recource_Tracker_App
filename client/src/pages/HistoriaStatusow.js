@@ -119,12 +119,7 @@ function HistoriaStatusow() {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={chartData}
-            margin={{
-              top: 10,
-              right: 30,
-              left: 10,
-              bottom: 0,
-            }}
+            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
           >
             <CartesianGrid
               strokeDasharray="3 3"
@@ -157,14 +152,7 @@ function HistoriaStatusow() {
       <div className="history-chart">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
-            data={chartData}
-            margin={{
-              top: 10,
-              right: 30,
-              left: 10,
-              bottom: 0,
-            }}
-          >
+            data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid
               strokeDasharray="3 3"
               stroke="#e5e7eb"

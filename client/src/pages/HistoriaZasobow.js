@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  ReferenceLine,
 } from "recharts";
 import { useParams } from "react-router-dom";
 
@@ -31,15 +32,30 @@ export default function HistoriaZasobow() {
         // Konwersja wartości tekstowych na liczby dla poprawnego skalowania osi Y
         const mappedHistoria = (data.historia || []).map((item) => ({
           ...item,
-          zuzycie_cpu_procent: item.zuzycie_cpu_procent != null ? Number(item.zuzycie_cpu_procent) : null,
-          zuzycie_ramu_mb: item.zuzycie_ramu_mb != null ? Number(item.zuzycie_ramu_mb) : null,
-          zuzycie_dysku_mb: item.zuzycie_dysku_mb != null ? Number(item.zuzycie_dysku_mb) : null,
-          zuzycie_procesow: item.zuzycie_procesow != null ? Number(item.zuzycie_procesow) : null,
+          zuzycie_cpu_procent:
+            item.zuzycie_cpu_procent != null
+              ? Number(item.zuzycie_cpu_procent)
+              : null,
+          zuzycie_ramu_mb:
+            item.zuzycie_ramu_mb != null ? Number(item.zuzycie_ramu_mb) : null,
+          zuzycie_dysku_mb:
+            item.zuzycie_dysku_mb != null
+              ? Number(item.zuzycie_dysku_mb)
+              : null,
+          zuzycie_procesow:
+            item.zuzycie_procesow != null
+              ? Number(item.zuzycie_procesow)
+              : null,
+          limit_dysku_mb:
+            item.limit_dysku_mb != null ? Number(item.limit_dysku_mb) : null,
         }));
 
         const mappedPrediction = (data.predykcja || []).map((item) => ({
           ...item,
-          zuzycie_dysku_prognoza: item.zuzycie_dysku_prognoza != null ? Number(item.zuzycie_dysku_prognoza) : null,
+          zuzycie_dysku_prognoza:
+            item.zuzycie_dysku_prognoza != null
+              ? Number(item.zuzycie_dysku_prognoza)
+              : null,
         }));
 
         setHistoria(mappedHistoria);
@@ -77,15 +93,17 @@ export default function HistoriaZasobow() {
   // Przygotowanie danych do wykresu dysku bez mutowania stanu
   let lastSize = null;
 
+  // Używamy [...filteredHistoria].reverse(), aby nie mutować tablicy w pamięci
   const daneWykresu = [
-    ...filteredHistoria.reverse(),
+    ...[...filteredHistoria].reverse(),
     ...filteredPrediction,
   ].map((item) => {
     if (item.zuzycie_dysku_mb !== null) {
       lastSize = item.zuzycie_dysku_mb;
     }
 
-    const isMissing = item.zuzycie_dysku_mb === null && item.zuzycie_dysku_prognoza == null;
+    const isMissing =
+      item.zuzycie_dysku_mb === null && item.zuzycie_dysku_prognoza == null;
 
     return {
       ...item,
@@ -100,11 +118,11 @@ export default function HistoriaZasobow() {
       </div>
     );
   }
-
+  const limitDysku = historia[0]?.limit_dysku_mb;
   return (
     <div className="history-details-container">
       <h2 className="history-details-title">Historia zużycia zasobów</h2>
-      
+
       <div className="filter-section">
         <label>
           Od:
@@ -134,23 +152,38 @@ export default function HistoriaZasobow() {
         </button>
       </div>
 
-            {/* DYSK */}
+      {/* DYSK */}
       <h3 className="history-table-title">Dysk (MB)</h3>
       <div className="history-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={daneWykresu} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <LineChart
+            data={daneWykresu}
+            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+          >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="data_i_czas" tick={<CustomTick />} height={65} interval="preserveStartEnd" padding={{ left: 25, right: 25 }} />
-            <YAxis domain={[0, (max) => Math.ceil(max * 1.05)]} tickCount={4} unit=" MB"/>
+            <XAxis
+              dataKey="data_i_czas"
+              tick={<CustomTick />}
+              height={65}
+              interval="preserveStartEnd"
+              padding={{ left: 25, right: 25 }}
+            />
+            <YAxis
+              domain={[0, (max) => Math.ceil(max * 1.05)]}
+              tickCount={4}
+              unit=" MB"
+            />
             <Tooltip
-              labelFormatter={(value) => new Date(value).toLocaleString("pl-PL")}
+              labelFormatter={(value) =>
+                new Date(value).toLocaleString("pl-PL").slice(0, -3)
+              }
               formatter={(value, name) => {
                 if (name === "brak_danych") {
                   return ["Brak danych", "Rozmiar"];
                 }
                 return [
                   `${Number(value).toFixed(2).replace(/\.00$/, "")} MB`,
-                  "Rozmiar"
+                  "Rozmiar",
                 ];
               }}
             />
@@ -177,38 +210,72 @@ export default function HistoriaZasobow() {
               dot={false}
               activeDot={{ r: 5 }}
             />
+            {historia[0].typ === "serwer" && (
+              <ReferenceLine
+                y={limitDysku * 0.9}
+                stroke="orange"
+                strokeDasharray="5 5"
+                label="90%"
+              />
+            )}
+
+            {historia[0].typ === "serwer" && (
+              <ReferenceLine
+                y={limitDysku}
+                stroke="red"
+                strokeDasharray="5 5"
+                label="Limit"
+              />
+            )}
           </LineChart>
         </ResponsiveContainer>
       </div>
       <div className="container-history">
-      <h3>Średni wzrost w ciągu ostatnich 30 dni:</h3><br />
-      <p className="history-details-subtitle">
-        {averageGrowth30Days != null ? Number(averageGrowth30Days).toFixed(2) : "0.00"} MB
-      </p><br />
+        <h3>Średni wzrost w ciągu ostatnich 30 dni:</h3>
+        <br />
+        <p className="history-details-subtitle">
+          {averageGrowth30Days != null
+            ? Number(averageGrowth30Days).toFixed(2)
+            : "0"}{" "}
+          MB / dzień
+        </p>
+        <br />
 
-      {predictedFullDate && (
-        <>
-          <h3>Przewidywana data osiągnięcia limitu:</h3><br/>
-          <p className="history-details-subtitle">
-            {new Date(predictedFullDate).toLocaleDateString("pl-PL")} r.
-          </p>
-        </>
-      )}
+        {predictedFullDate && (
+          <>
+            <h3>Przewidywana data osiągnięcia limitu:</h3>
+            <br />
+            <p className="history-details-subtitle">
+              {new Date(predictedFullDate).toLocaleDateString("pl-PL")} r.
+            </p>
+          </>
+        )}
       </div>
 
       {/* CPU */}
       <h3 className="history-table-title">CPU (%)</h3>
       <div className="history-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={filteredHistoria} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <LineChart
+            data={filteredHistoria}
+            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+          >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="data_i_czas" tick={<CustomTick />} height={65} interval="preserveStartEnd" padding={{ left: 25, right: 25 }} />
+            <XAxis
+              dataKey="data_i_czas"
+              tick={<CustomTick />}
+              height={65}
+              interval="preserveStartEnd"
+              padding={{ left: 25, right: 25 }}
+            />
             <YAxis domain={[0, (max) => Math.ceil(max * 1.05)]} tickCount={4} />
             <Tooltip
-              labelFormatter={(value) => new Date(value).toLocaleString("pl-PL")}
+              labelFormatter={(value) =>
+                new Date(value).toLocaleString("pl-PL").slice(0, -3)
+              }
               formatter={(value) => [
                 `${Number(value).toFixed(2).replace(/\.00$/, "")} %`,
-                "CPU"
+                "CPU",
               ]}
             />
             <Line
@@ -227,15 +294,30 @@ export default function HistoriaZasobow() {
       <h3 className="history-table-title">RAM (MB)</h3>
       <div className="history-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={filteredHistoria} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <LineChart
+            data={filteredHistoria}
+            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+          >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="data_i_czas" tick={<CustomTick />} height={65} interval="preserveStartEnd" padding={{ left: 25, right: 25 }} />
-            <YAxis domain={[0, (max) => Math.ceil(max * 1.05)]} tickCount={4} unit=" MB"/>
+            <XAxis
+              dataKey="data_i_czas"
+              tick={<CustomTick />}
+              height={65}
+              interval="preserveStartEnd"
+              padding={{ left: 25, right: 25 }}
+            />
+            <YAxis
+              domain={[0, (max) => Math.ceil(max * 1.05)]}
+              tickCount={4}
+              unit=" MB"
+            />
             <Tooltip
-              labelFormatter={(value) => new Date(value).toLocaleString("pl-PL")}
+              labelFormatter={(value) =>
+                new Date(value).toLocaleString("pl-PL").slice(0, -3)
+              }
               formatter={(value) => [
                 `${Number(value).toFixed(2).replace(/\.00$/, "")} MB`,
-                "Rozmiar"
+                "Rozmiar",
               ]}
             />
             <Line
@@ -254,16 +336,24 @@ export default function HistoriaZasobow() {
       <h3 className="history-table-title">Procesy</h3>
       <div className="history-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={filteredHistoria} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <LineChart
+            data={filteredHistoria}
+            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+          >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="data_i_czas" tick={<CustomTick />} height={65} interval="preserveStartEnd" padding={{ left: 25, right: 25 }} />
+            <XAxis
+              dataKey="data_i_czas"
+              tick={<CustomTick />}
+              height={65}
+              interval="preserveStartEnd"
+              padding={{ left: 25, right: 25 }}
+            />
             <YAxis domain={[0, (max) => Math.ceil(max * 1.05)]} tickCount={4} />
             <Tooltip
-              labelFormatter={(value) => new Date(value).toLocaleString("pl-PL")}
-              formatter={(value) => [
-                Number(value).toFixed(0),
-                "Ilość"
-              ]}
+              labelFormatter={(value) =>
+                new Date(value).toLocaleString("pl-PL").slice(0, -3)
+              }
+              formatter={(value) => [Number(value).toFixed(0), "Ilość"]}
             />
             <Line
               type="monotone"
@@ -293,42 +383,50 @@ export default function HistoriaZasobow() {
           <tbody>
             {filteredHistoria.map((d, i) => (
               <tr key={i}>
-                <td>{d.data_i_czas ? d.data_i_czas.slice(0, -3) : "Brak danych"}</td>
-                
+                <td>
+                  {d.data_i_czas ? d.data_i_czas.slice(0, -3) : "Brak danych"}
+                </td>
+
                 {/* CPU */}
                 <td className="cpu">
-                  {d.zuzycie_cpu_procent === null || d.zuzycie_cpu_procent === undefined ? (
+                  {d.zuzycie_cpu_procent === null ||
+                  d.zuzycie_cpu_procent === undefined ? (
                     "Brak danych"
                   ) : (
-                    <>{Number(d.zuzycie_cpu_procent).toFixed(2).replace(/\.00$/, "")}%</>
+                    <>
+                      {Number(d.zuzycie_cpu_procent)
+                        .toFixed(2)
+                        .replace(/\.00$/, "")}
+                      %
+                    </>
                   )}
                 </td>
 
                 {/* RAM */}
                 <td className="ram">
-                  {d.zuzycie_ramu_mb === null || d.zuzycie_ramu_mb === undefined ? (
-                    "Brak danych"
-                  ) : (
-                    Number(d.zuzycie_ramu_mb).toFixed(2).replace(/\.00$/, "")
-                  )}
+                  {d.zuzycie_ramu_mb === null || d.zuzycie_ramu_mb === undefined
+                    ? "Brak danych"
+                    : Number(d.zuzycie_ramu_mb).toFixed(2).replace(/\.00$/, "")}
                 </td>
 
                 {/* DYSK */}
                 <td className="disk">
-                  {d.zuzycie_dysku_mb === null || d.zuzycie_dysku_mb === undefined ? (
-                    "Brak danych"
-                  ) : (
-                    Number(d.zuzycie_dysku_mb).toFixed(2).replace(/\.00$/, "")
-                  )}
+                  {d.zuzycie_dysku_mb === null ||
+                  d.zuzycie_dysku_mb === undefined
+                    ? "Brak danych"
+                    : Number(d.zuzycie_dysku_mb)
+                        .toFixed(2)
+                        .replace(/\.00$/, "")}
                 </td>
 
                 {/* PROCESY */}
                 <td className="processes">
-                  {d.zuzycie_procesow === null || d.zuzycie_procesow === undefined ? (
-                    "Brak danych"
-                  ) : (
-                    Number(d.zuzycie_procesow).toFixed(2).replace(/\.00$/, "")
-                  )}
+                  {d.zuzycie_procesow === null ||
+                  d.zuzycie_procesow === undefined
+                    ? "Brak danych"
+                    : Number(d.zuzycie_procesow)
+                        .toFixed(2)
+                        .replace(/\.00$/, "")}
                 </td>
               </tr>
             ))}
