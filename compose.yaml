@@ -33,7 +33,7 @@ services:
     container_name: ResourceTracker_client
     restart: always
     ports:
-      - "127.0.0.1:3000:3000"
+      - "3000:3000"
     networks:
       - appnet  
     stdin_open: true # Ważne dla Reacta w Dockerze
