@@ -17,10 +17,11 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       API_KEY: ${API_KEY}
       PORT: ${PORT}
+      PORT_CONTENER: ${PORT_CONTENER}
       GOOGLE_CHAT_WEBHOOK: ${GOOGLE_CHAT_WEBHOOK}
       MAX_DB_SIZE: ${MAX_DB_SIZE}
     ports:
-      - "${PORT}:${PORT}"
+      - "${PORT}:${PORT_CONTENER}"
     depends_on:
       db:
         condition: service_healthy

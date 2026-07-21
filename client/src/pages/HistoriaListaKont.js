@@ -61,7 +61,7 @@ function HistoriaListaKont() {
   };
 
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_API_URL}/api/historia_uslug`)
+    fetch(`/api/historia_uslug`)
       .then((res) => res.json())
       .then((data) => setAccounts(groupData(data)))
       .catch((err) => console.error("Database error:", err));

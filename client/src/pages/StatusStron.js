@@ -12,7 +12,7 @@ function StatusStron() {
 
   useEffect(() => {
     const loadData = () => {
-      fetch(`${process.env.REACT_APP_API_URL}/api/strony`)
+      fetch(`/api/strony`)
         .then((res) => res.json())
         .then((data) => {
           setStatusData(data);

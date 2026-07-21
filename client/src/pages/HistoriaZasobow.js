@@ -26,7 +26,7 @@ export default function HistoriaZasobow() {
   useEffect(() => {
     if (!id) return;
 
-    fetch(`${process.env.REACT_APP_API_URL}/api/historia_zasobow/${id}`)
+    fetch(`/api/historia_zasobow/${id}`)
       .then((res) => res.json())
       .then((data) => {
         // Konwersja wartości tekstowych na liczby dla poprawnego skalowania osi Y

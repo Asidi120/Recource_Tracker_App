@@ -17,7 +17,7 @@ function StronaGlowna() {
     setIsLooping(true);
 
     try {
-      const zasobyResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/zasoby`);
+      const zasobyResponse = await fetch(`/api/zasoby`);
 
       if (!zasobyResponse.ok)
         throw new Error("Błąd sieci serwera");
@@ -28,7 +28,7 @@ function StronaGlowna() {
 
 
       // pobranie informacji o bazie
-      const bazaResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/rozmiar_bazy`);
+      const bazaResponse = await fetch(`/api/rozmiar_bazy`);
 
       if (!bazaResponse.ok)
         throw new Error("Błąd pobierania rozmiaru bazy");
