@@ -28,7 +28,7 @@ function SzczegolyHistoriiUslugi() {
   useEffect(() => {
     if (!id) return;
 
-    fetch(`/api/historia_uslug/${id}`)
+    fetch(`${process.env.REACT_APP_API_URL}/api/historia_uslug/${id}`)
       .then((res) => res.json())
       .then((data) => {
         setHistoria(data.historia);

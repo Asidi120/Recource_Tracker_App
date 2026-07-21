@@ -24,7 +24,7 @@ function HistoriaStatusow() {
   useEffect(() => {
     if (!hosting_id) return;
 
-    fetch(`/api/historia_statusow/${hosting_id}/${usluga_id}`)
+    fetch(`${process.env.REACT_APP_API_URL}/api/historia_statusow/${hosting_id}/${usluga_id}`)
       .then((res) => res.json())
       .then((data) => {
         setHistoria(data);
@@ -158,7 +158,6 @@ function HistoriaStatusow() {
               dataKey="ping_ms"
               stroke="#4f46e5"
               strokeWidth={2}
-              dot={{ r: 2 }}
               activeDot={{ r: 4 }}
               dot={false}
             />

@@ -32,6 +32,8 @@ services:
       dockerfile: Dockerfile
     container_name: ResourceTracker_client
     restart: always
+    environment:
+      REACT_APP_API_URL: ${PROXY}
     ports:
       - "3000:3000"
     networks:
