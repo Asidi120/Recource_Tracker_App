@@ -68,7 +68,7 @@ services:
     environment:
       SERVER_PORT: ${PORT}
     volumes:
-      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template
     depends_on:
       - client
       - server
