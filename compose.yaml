@@ -42,7 +42,7 @@ services:
     stdin_open: true # Ważne dla Reacta w Dockerze
     tty: true
   db:
-    image: mysql:8
+    image: mysql:9
     container_name: mysql_local
     restart: always
     environment:
