@@ -65,10 +65,8 @@ services:
     restart: always
     ports:
       - "80:80"
-    environment:
-      SERVER_PORT: ${PORT}
     volumes:
-      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - client
       - server
