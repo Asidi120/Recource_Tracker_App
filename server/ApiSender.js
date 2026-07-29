@@ -386,14 +386,55 @@ GROUP BY
       const [rows] = await db.query(
         `
       SELECT
-          z.data_i_czas,
-          z.zuzycie_cpu_procent,
-          z.zuzycie_ramu_mb,
-          z.zuzycie_dysku_mb,
-          z.zuzycie_procesow,
-          z.limit_dysku_mb
-      FROM ZUZYCIE_ZASOBOW z
-      WHERE z.hosting_id = ?
+    z.data_i_czas,
+    z.zuzycie_cpu_procent,
+    z.zuzycie_ramu_mb,
+    z.zuzycie_dysku_mb,
+    z.zuzycie_procesow,
+    z.limit_dysku_mb
+FROM ZUZYCIE_ZASOBOW z
+WHERE
+    z.hosting_id = ?
+    AND (
+        (
+            z.data_i_czas >= NOW() - INTERVAL 1 DAY
+        )
+
+        OR
+
+        (
+            z.data_i_czas >= NOW() - INTERVAL 7 DAY
+            AND z.data_i_czas < NOW() - INTERVAL 1 DAY
+            AND MINUTE(z.data_i_czas) % 10 = 0
+        )
+
+        OR
+
+        (
+            z.data_i_czas >= NOW() - INTERVAL 30 DAY
+            AND z.data_i_czas < NOW() - INTERVAL 7 DAY
+            AND MINUTE(z.data_i_czas) = 0
+        )
+
+        OR
+
+        (
+            z.data_i_czas >= NOW() - INTERVAL 1 YEAR
+            AND z.data_i_czas < NOW() - INTERVAL 30 DAY
+            AND HOUR(z.data_i_czas) IN (0, 12)
+            AND MINUTE(z.data_i_czas) = 0
+        )
+
+        OR
+
+        (
+            z.data_i_czas < NOW() - INTERVAL 1 YEAR
+            AND HOUR(z.data_i_czas) = 0
+            AND MINUTE(z.data_i_czas) = 0
+            AND MOD(DAYOFYEAR(z.data_i_czas), 2) = 0
+        )
+    )
+ORDER BY z.data_i_czas DESC;
     `,
         [req.params.id],
       );
