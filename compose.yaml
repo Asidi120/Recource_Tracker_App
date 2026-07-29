@@ -17,7 +17,6 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       API_KEY: ${API_KEY}
       PORT: ${PORT}
-      PORT_CONTENER: ${PORT_CONTENER}
       GOOGLE_CHAT_WEBHOOK: ${GOOGLE_CHAT_WEBHOOK}
       MAX_DB_SIZE: ${MAX_DB_SIZE}
     ports:
@@ -45,9 +44,9 @@ services:
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     command: --default-time-zone='Europe/Warsaw'
     volumes:
       - db_data:/var/lib/mysql

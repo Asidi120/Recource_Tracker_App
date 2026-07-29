@@ -1,46 +1,28 @@
 import { formatDate } from "./SizePrediction.js";
 
-export function fillMissingData(history, intervalMinutes = 1) {
-  if (!history.length) return [];
+function getIntervalMinutes(date) {
+  const now = Date.now();
+  const diffDays =
+    (now - new Date(date).getTime()) / (1000 * 60 * 60 * 24);
 
-  const filled = [];
-  const interval = intervalMinutes * 60 * 1000;
-
-  for (let i = 0; i < history.length - 1; i++) {
-    filled.push(history[i]);
-
-    const current = new Date(history[i].data_i_czas).getTime();
-    const next = new Date(history[i + 1].data_i_czas).getTime();
-
-    const direction = current < next ? 1 : -1;
-    const diff = Math.abs(next - current);
-
-    // ile pełnych odstępów minutowych jest między rekordami
-    const missingCount = Math.floor(diff / interval) - 1;
-
-    for (let j = 1; j <= missingCount; j++) {
-      filled.push({
-        ...history[i],
-        data_i_czas: formatDate(
-          new Date(current + direction * interval * j)
-        ),
-        rozmiar_mb: null,
-        rozmiar_prognoza: null,
-      });
-    }
-  }
-
-  filled.push(history[history.length - 1]);
-
-  return filled;
+  if (diffDays <= 1) return 1;       // ostatnie 24h
+  if (diffDays <= 7) return 10;      // 1-7 dni
+  if (diffDays <= 30) return 60;     // 7-30 dni
+  if (diffDays <= 365) return 720;   // 30 dni - rok
+  return 2880;                       // > rok (2 dni)
 }
 
-export function fillMissingResourceData(history, intervalMinutes = 1) {
+function nextTimestamp(timestamp, direction) {
+  const interval =
+    getIntervalMinutes(new Date(timestamp)) * 60 * 1000;
+
+  return timestamp + direction * interval;
+}
+
+function fillHistory(history, nullFields) {
   if (!history.length) return [];
 
   const filled = [];
-  const interval = intervalMinutes * 60 * 1000;
-
   const MAX_GENERATED_POINTS = 1000;
 
   for (let i = 0; i < history.length - 1; i++) {
@@ -49,28 +31,34 @@ export function fillMissingResourceData(history, intervalMinutes = 1) {
     const current = new Date(history[i].data_i_czas).getTime();
     const next = new Date(history[i + 1].data_i_czas).getTime();
 
-    if (next <= current) continue;
+    const direction = current < next ? 1 : -1;
 
-    const diff = next - current;
-    const missingCount = Math.floor(diff / interval) - 1;
+    let missing = nextTimestamp(current, direction);
+    let generated = 0;
 
-    if (missingCount > MAX_GENERATED_POINTS) {
-      console.warn(
-        `Wykryto zbyt dużą lukę między ${history[i].data_i_czas} a ${history[i + 1].data_i_czas}`
-      );
-      continue;
-    }
+    while (
+      (direction > 0 && missing < next) ||
+      (direction < 0 && missing > next)
+    ) {
+      if (++generated > MAX_GENERATED_POINTS) {
+        console.warn(
+          `Za dużo wygenerowanych punktów pomiędzy ${history[i].data_i_czas} i ${history[i + 1].data_i_czas}`
+        );
+        break;
+      }
 
-    for (let j = 1; j <= missingCount; j++) {
-      filled.push({
+      const row = {
         ...history[i],
-        data_i_czas: formatDate(new Date(current + interval * j)),
-        zuzycie_cpu_procent: null,
-        zuzycie_ramu_mb: null,
-        zuzycie_dysku_mb: null,
-        zuzycie_procesow: null,
-        zuzycie_dysku_prognoza: null,
-      });
+        data_i_czas: formatDate(new Date(missing)),
+      };
+
+      for (const field of nullFields) {
+        row[field] = null;
+      }
+
+      filled.push(row);
+
+      missing = nextTimestamp(missing, direction);
     }
   }
 
@@ -79,11 +67,27 @@ export function fillMissingResourceData(history, intervalMinutes = 1) {
   return filled;
 }
 
-export function fillMissingStatusData(history, intervalMinutes = 1) {
+export function fillMissingData(history) {
+  return fillHistory(history, [
+    "rozmiar_mb",
+    "rozmiar_prognoza",
+  ]);
+}
+
+export function fillMissingResourceData(history) {
+  return fillHistory(history, [
+    "zuzycie_cpu_procent",
+    "zuzycie_ramu_mb",
+    "zuzycie_dysku_mb",
+    "zuzycie_procesow",
+    "zuzycie_dysku_prognoza",
+  ]);
+}
+
+export function fillMissingStatusData(history) {
   if (!history.length) return [];
 
-  // Zaokrąglamy wszystkie istniejące rekordy do pełnej minuty
-  const normalizedHistory = history.map((item) => {
+  const normalized = history.map((item) => {
     const d = new Date(item.data_i_czas);
     d.setSeconds(0, 0);
 
@@ -93,33 +97,9 @@ export function fillMissingStatusData(history, intervalMinutes = 1) {
     };
   });
 
-  const filled = [];
-  const interval = intervalMinutes * 60 * 1000;
-
-  for (let i = 0; i < normalizedHistory.length - 1; i++) {
-    filled.push(normalizedHistory[i]);
-
-    const current = new Date(normalizedHistory[i].data_i_czas).getTime();
-    const next = new Date(normalizedHistory[i + 1].data_i_czas).getTime();
-
-    if (current > next) {
-      let missing = current - interval;
-
-      while (missing > next) {
-        filled.push({
-          ...normalizedHistory[i],
-          data_i_czas: formatDate(new Date(missing)),
-          status: null,
-          ping_ms: null,
-          blad: null,
-        });
-
-        missing -= interval;
-      }
-    }
-  }
-
-  filled.push(normalizedHistory[normalizedHistory.length - 1]);
-
-  return filled;
+  return fillHistory(normalized, [
+    "status",
+    "ping_ms",
+    "blad",
+  ]);
 }

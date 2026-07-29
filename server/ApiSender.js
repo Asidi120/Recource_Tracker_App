@@ -16,28 +16,45 @@ export function StartApi(app) {
 
       const [rows] = await db.query(`
         SELECT
-          k.id AS hosting_id,
-          k.login,
-          z.data_i_czas,
-          z.zuzycie_cpu_procent,
-          z.zuzycie_ramu_mb,
-          z.limit_ramu_mb,
-          z.zuzycie_ramu_procent,
-          z.zuzycie_dysku_mb,
-          z.limit_dysku_mb,
-          z.zuzycie_dysku_procent,
-          z.zuzycie_procesow,
-          z.limit_procesow
+            k.id AS hosting_id,
+            k.login,
+            z.data_i_czas,
+            z.zuzycie_cpu_procent,
+            z.zuzycie_ramu_mb,
+            z.limit_ramu_mb,
+            z.zuzycie_ramu_procent,
+            z.zuzycie_dysku_mb,
+            z.limit_dysku_mb,
+            z.zuzycie_dysku_procent,
+            z.zuzycie_procesow,
+            z.limit_procesow
         FROM KONTO_HOSTINGOWE k
-        JOIN ZUZYCIE_ZASOBOW z
-          ON z.hosting_id = k.id
         JOIN (
-          SELECT hosting_id, MAX(data_i_czas) AS max_data
-          FROM ZUZYCIE_ZASOBOW
-          GROUP BY hosting_id
-        ) latest
-          ON z.hosting_id = latest.hosting_id
-          AND z.data_i_czas = latest.max_data;
+            SELECT
+                hosting_id,
+                data_i_czas,
+                zuzycie_cpu_procent,
+                zuzycie_ramu_mb,
+                limit_ramu_mb,
+                zuzycie_ramu_procent,
+                zuzycie_dysku_mb,
+                limit_dysku_mb,
+                zuzycie_dysku_procent,
+                zuzycie_procesow,
+                limit_procesow
+            FROM (
+                SELECT
+                    *,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY hosting_id
+                        ORDER BY data_i_czas DESC
+                    ) AS rn
+                FROM ZUZYCIE_ZASOBOW
+            ) t
+            WHERE rn = 1
+        ) z
+        ON z.hosting_id = k.id
+        ORDER BY k.login;
     `);
       res.json(rows);
     } catch (err) {
@@ -54,41 +71,56 @@ export function StartApi(app) {
     try {
       db = await DbConnection();
       const [rows] = await db.query(`
-    SELECT
-        hs.id,
-        u.nazwa,
-        u.id AS usluga_id,
-        kh.id AS hosting_id,
-        kh.login,
-        GROUP_CONCAT(DISTINCT jp.nazwa ORDER BY jp.nazwa SEPARATOR ', ') AS technologie,
-        hs.data_i_czas,
-        hs.status,
-        hs.ping_ms,
-        hs.blad
-    FROM HISTORIA_STATUSU hs
-    JOIN (
         SELECT
-            usluga_id,
-            MAX(data_i_czas) AS max_data
-        FROM HISTORIA_STATUSU
-        GROUP BY usluga_id
-    ) latest
-    ON hs.usluga_id = latest.usluga_id
-    AND hs.data_i_czas = latest.max_data
-    JOIN USLUGI u
-        ON hs.usluga_id = u.id
-    JOIN KONTO_HOSTINGOWE kh
-        ON u.hosting_id = kh.id
-    LEFT JOIN USLUGI_TECHNOLOGIE ut
-    ON ut.usluga_id = u.id
-    LEFT JOIN TECHNOLOGIE jp
-    ON jp.id = ut.technologia_id
-    WHERE u.typ = 'www'
-    GROUP BY
-      hs.id,
-      u.id,
-      kh.id
-    ORDER BY kh.login, u.nazwa;
+            hs.id,
+            u.nazwa,
+            u.id AS usluga_id,
+            kh.id AS hosting_id,
+            kh.login,
+            tech.technologie,
+            hs.data_i_czas,
+            hs.status,
+            hs.ping_ms,
+            hs.blad
+        FROM
+        (
+            SELECT *
+            FROM
+            (
+                SELECT
+                    *,
+                    ROW_NUMBER() OVER(
+                        PARTITION BY usluga_id
+                        ORDER BY data_i_czas DESC
+                    ) rn
+                FROM HISTORIA_STATUSU
+            ) t
+            WHERE rn = 1
+        ) hs
+
+        JOIN USLUGI u
+        ON u.id = hs.usluga_id
+
+        JOIN KONTO_HOSTINGOWE kh
+        ON kh.id = u.hosting_id
+
+        LEFT JOIN
+        (
+            SELECT
+                ut.usluga_id,
+                GROUP_CONCAT(jp.nazwa ORDER BY jp.nazwa SEPARATOR ', ') AS technologie
+            FROM USLUGI_TECHNOLOGIE ut
+            JOIN TECHNOLOGIE jp
+                ON jp.id = ut.technologia_id
+            GROUP BY ut.usluga_id
+        ) tech
+        ON tech.usluga_id = u.id
+
+        WHERE u.typ='www'
+
+        ORDER BY
+            kh.login,
+            u.nazwa;
     `);
 
       res.json(rows);
@@ -222,7 +254,7 @@ ON jp.id = ut.technologia_id
           u.id AS usluga_id,
           u.nazwa,
           u.typ,
-          GROUP_CONCAT(DISTINCT jp.nazwa ORDER BY jp.nazwa SEPARATOR ', ') AS technologie,
+          tech.technologie,
           aktualny.rozmiar_mb AS aktualny_rozmiar_mb,
           ru.data_i_czas,
           ru.rozmiar_mb,
@@ -241,10 +273,16 @@ ON jp.id = ut.technologia_id
     AND z1.data_i_czas = z2.max_data
 ) z
 ON z.hosting_id = kh.id
-      LEFT JOIN USLUGI_TECHNOLOGIE ut
-      ON ut.usluga_id = u.id
-      LEFT JOIN TECHNOLOGIE jp
-      ON jp.id = ut.technologia_id
+      LEFT JOIN (
+    SELECT
+        ut.usluga_id,
+        GROUP_CONCAT(jp.nazwa ORDER BY jp.nazwa SEPARATOR ', ') AS technologie
+    FROM USLUGI_TECHNOLOGIE ut
+    JOIN TECHNOLOGIE jp
+        ON jp.id = ut.technologia_id
+    GROUP BY ut.usluga_id
+) tech
+ON tech.usluga_id = u.id
       LEFT JOIN (
           SELECT r1.usluga_id, r1.rozmiar_mb
           FROM ROZMIAR_USLUGI r1
@@ -255,28 +293,66 @@ ON z.hosting_id = kh.id
           ) r2 ON r1.usluga_id = r2.usluga_id AND r1.data_i_czas = r2.max_data
       ) aktualny ON aktualny.usluga_id = u.id
       LEFT JOIN (
-          SELECT *
-          FROM (
-              SELECT
-                  ru.*,
-                  ROW_NUMBER() OVER (PARTITION BY ru.usluga_id ORDER BY ru.data_i_czas DESC) AS rn
-              FROM ROZMIAR_USLUGI ru
-          ) x
-          WHERE rn <= 200
-      ) ru ON ru.usluga_id = u.id
+    SELECT *
+    FROM (
+        SELECT
+            ru.*,
+            ROW_NUMBER() OVER (
+                PARTITION BY ru.usluga_id
+                ORDER BY ru.data_i_czas DESC
+            ) AS rn
+        FROM ROZMIAR_USLUGI ru
+        WHERE
+            (
+                ru.data_i_czas >= NOW() - INTERVAL 1 DAY
+            )
+
+            OR
+            (
+                ru.data_i_czas >= NOW() - INTERVAL 7 DAY
+                AND ru.data_i_czas < NOW() - INTERVAL 1 DAY
+                AND MINUTE(ru.data_i_czas) % 10 = 0
+            )
+
+            OR
+            (
+                ru.data_i_czas >= NOW() - INTERVAL 30 DAY
+                AND ru.data_i_czas < NOW() - INTERVAL 7 DAY
+                AND MINUTE(ru.data_i_czas) = 0
+            )
+
+            OR
+            (
+                ru.data_i_czas >= NOW() - INTERVAL 1 YEAR
+                AND ru.data_i_czas < NOW() - INTERVAL 30 DAY
+                AND HOUR(ru.data_i_czas) IN (0,12)
+                AND MINUTE(ru.data_i_czas) = 0
+            )
+
+            OR
+            (
+                ru.data_i_czas < NOW() - INTERVAL 1 YEAR
+                AND HOUR(ru.data_i_czas) = 0
+                AND MINUTE(ru.data_i_czas) = 0
+                AND MOD(DAYOFYEAR(ru.data_i_czas),2)=0
+            )
+    ) x
+    WHERE rn <= 200
+) ru
+ON ru.usluga_id = u.id
       WHERE u.id = ?
-    GROUP BY
-      kh.id,
-      kh.login,
-      u.id,
-      u.nazwa,
-      u.typ,
-      aktualny.rozmiar_mb,
-      ru.data_i_czas,
-      ru.rozmiar_mb
+GROUP BY
+    kh.id,
+    kh.login,
+    u.id,
+    u.nazwa,
+    u.typ,
+    tech.technologie,
+    aktualny.rozmiar_mb,
+    ru.data_i_czas,
+    ru.rozmiar_mb,
+    z.limit_dysku_mb
     ORDER BY
-      kh.login,
-      u.nazwa,
       ru.data_i_czas DESC;
     `,
         [req.params.id],
@@ -373,34 +449,78 @@ res.json({
       const [rows] = await db.query(
         `
       SELECT
-          hs.usluga_id,
-          hs.data_i_czas,
-          hs.status,
-          hs.ping_ms,
-          u.nazwa,
-          u.typ,
-          kh.login,
-          hs.blad,
-          GROUP_CONCAT(DISTINCT jp.nazwa ORDER BY jp.nazwa SEPARATOR ', ') AS technologie
-      FROM HISTORIA_STATUSU hs
-      JOIN USLUGI u ON u.id = hs.usluga_id
-      JOIN KONTO_HOSTINGOWE kh ON u.hosting_id = kh.id
-      LEFT JOIN USLUGI_TECHNOLOGIE ut
-ON ut.usluga_id = u.id
-
-LEFT JOIN TECHNOLOGIE jp
-ON jp.id = ut.technologia_id
-      WHERE u.hosting_id = ? AND hs.usluga_id = ?
-      GROUP BY
-    hs.id,
     hs.usluga_id,
     hs.data_i_czas,
     hs.status,
     hs.ping_ms,
+    hs.blad,
     u.nazwa,
     u.typ,
     kh.login,
-    hs.blad;
+    tech.technologie
+
+FROM HISTORIA_STATUSU hs
+
+JOIN USLUGI u
+ON u.id = hs.usluga_id
+
+JOIN KONTO_HOSTINGOWE kh
+ON kh.id = u.hosting_id
+
+LEFT JOIN (
+    SELECT
+        ut.usluga_id,
+        GROUP_CONCAT(jp.nazwa ORDER BY jp.nazwa SEPARATOR ', ') AS technologie
+    FROM USLUGI_TECHNOLOGIE ut
+    JOIN TECHNOLOGIE jp
+        ON jp.id = ut.technologia_id
+    GROUP BY ut.usluga_id
+) tech
+ON tech.usluga_id = u.id
+
+WHERE
+    u.hosting_id = ?
+    AND hs.usluga_id = ?
+    AND
+    (
+        hs.data_i_czas >= NOW() - INTERVAL 1 DAY
+
+        OR
+
+        (
+            hs.data_i_czas >= NOW() - INTERVAL 7 DAY
+            AND hs.data_i_czas < NOW() - INTERVAL 1 DAY
+            AND MINUTE(hs.data_i_czas) % 10 = 0
+        )
+
+        OR
+
+        (
+            hs.data_i_czas >= NOW() - INTERVAL 30 DAY
+            AND hs.data_i_czas < NOW() - INTERVAL 7 DAY
+            AND MINUTE(hs.data_i_czas) = 0
+        )
+
+        OR
+
+        (
+            hs.data_i_czas >= NOW() - INTERVAL 1 YEAR
+            AND hs.data_i_czas < NOW() - INTERVAL 30 DAY
+            AND HOUR(hs.data_i_czas) IN (0,12)
+            AND MINUTE(hs.data_i_czas) = 0
+        )
+
+        OR
+
+        (
+            hs.data_i_czas < NOW() - INTERVAL 1 YEAR
+            AND HOUR(hs.data_i_czas) = 0
+            AND MINUTE(hs.data_i_czas) = 0
+            AND MOD(DAYOFYEAR(hs.data_i_czas),2)=0
+        )
+    )
+
+ORDER BY hs.data_i_czas DESC;
     `,
         [req.params.hosting_id, req.params.usluga_id],
       );

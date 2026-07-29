@@ -104,3 +104,29 @@ CREATE TABLE IF NOT EXISTS ROZMIAR_BAZA_DANYCH (
     rozmiar_mb DECIMAL(10,2) NOT NULL,
     data_i_czas DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- DODATKOWE INDEKSY
+
+-- Szybsze wyszukiwanie usług danego hostingu
+CREATE INDEX idx_uslugi_hosting
+ON USLUGI(hosting_id);
+
+-- Szybsze pobieranie usług WWW
+CREATE INDEX idx_uslugi_typ
+ON USLUGI(typ);
+
+-- Szybsze pobieranie alarmów hostingu
+CREATE INDEX idx_alarmy_hosting
+ON ALARMY(hosting_id);
+
+-- Szybsze pobieranie aktywnych alarmów
+CREATE INDEX idx_alarmy_aktywny
+ON ALARMY(aktywny);
+
+-- Szybsze pobieranie technologii usługi
+CREATE INDEX idx_ut_technologia
+ON USLUGI_TECHNOLOGIE(technologia_id);
+
+-- Szybsze pobieranie ostatniego rozmiaru bazy
+CREATE INDEX idx_db_data
+ON ROZMIAR_BAZA_DANYCH(data_i_czas DESC);
