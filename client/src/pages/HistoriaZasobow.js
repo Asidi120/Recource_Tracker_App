@@ -208,7 +208,7 @@ export default function HistoriaZasobow() {
               dataKey="brak_dysk"
               stroke="transparent"
               dot={{ r: 2, fill: "red" }}
-              activeDot={false}
+              activeDot={{ r: 5 }}
               isAnimationActive={false}
             />
             <Line
@@ -300,7 +300,7 @@ export default function HistoriaZasobow() {
               dataKey="brak_cpu"
               stroke="transparent"
               dot={{ r: 2, fill: "red" }}
-              activeDot={false}
+              activeDot={{} r: 5 }}
               isAnimationActive={false}
             />
           </LineChart>
@@ -349,7 +349,7 @@ export default function HistoriaZasobow() {
               dataKey="brak_ram"
               stroke="transparent"
               dot={{ r: 2, fill: "red" }}
-              activeDot={false}
+              activeDot={{ r: 5 }}
               isAnimationActive={false}
             />
           </LineChart>
@@ -391,7 +391,7 @@ export default function HistoriaZasobow() {
               dataKey="brak_procesy"
               stroke="transparent"
               dot={{ r: 2, fill: "red" }}
-              activeDot={false}
+              activeDot={{ r: 5 }}
               isAnimationActive={false}
             />
           </LineChart>
@@ -412,7 +412,7 @@ export default function HistoriaZasobow() {
             </tr>
           </thead>
           <tbody>
-            {filteredHistoria.map((d, i) => (
+            {filteredHistoria.reverse().map((d, i) => (
               <tr key={i}>
                 <td>
                   {d.data_i_czas ? d.data_i_czas.slice(0, -3) : "Brak danych"}

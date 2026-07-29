@@ -254,7 +254,7 @@ function SzczegolyHistoriiUslugi() {
             </tr>
           </thead>
           <tbody>
-            {filteredHistoria.map((row, index) => (
+            {filteredHistoria.reverse().map((row, index) => (
               <tr key={index} className="history-table-row">
                 <td className="history-table-date">
                   {new Date(row.data_i_czas)
