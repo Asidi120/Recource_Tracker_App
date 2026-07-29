@@ -412,7 +412,7 @@ export default function HistoriaZasobow() {
             </tr>
           </thead>
           <tbody>
-            {filteredHistoria.map((d, i) => (
+            {[...filteredHistoria].reverse().map((d, i) => (
               <tr key={i}>
                 <td>
                   {d.data_i_czas ? d.data_i_czas.slice(0, -3) : "Brak danych"}
