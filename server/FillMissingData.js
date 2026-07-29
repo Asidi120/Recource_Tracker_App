@@ -19,50 +19,93 @@ function nextTimestamp(timestamp, direction) {
   return timestamp + direction * interval;
 }
 
+function normalizeMinute(date) {
+  const d = new Date(date);
+  d.setSeconds(0, 0);
+  return d.getTime();
+}
+
+
 function fillHistory(history, nullFields) {
   if (!history.length) return [];
 
   const filled = [];
   const MAX_GENERATED_POINTS = 1000;
 
-  for (let i = 0; i < history.length - 1; i++) {
-    filled.push(history[i]);
 
-    const current = new Date(history[i].data_i_czas).getTime();
-    const next = new Date(history[i + 1].data_i_czas).getTime();
+  for (let i = 0; i < history.length - 1; i++) {
+
+    const current = normalizeMinute(
+      history[i].data_i_czas
+    );
+
+    const next = normalizeMinute(
+      history[i + 1].data_i_czas
+    );
+
+
+    filled.push({
+      ...history[i],
+      data_i_czas: formatDate(new Date(current))
+    });
+
 
     const direction = current < next ? 1 : -1;
 
+
     let missing = nextTimestamp(current, direction);
+
     let generated = 0;
+
 
     while (
       (direction > 0 && missing < next) ||
       (direction < 0 && missing > next)
     ) {
+
       if (++generated > MAX_GENERATED_POINTS) {
         console.warn(
-          `Za dużo wygenerowanych punktów pomiędzy ${history[i].data_i_czas} i ${history[i + 1].data_i_czas}`
+          `Za dużo punktów pomiędzy ${history[i].data_i_czas} i ${history[i + 1].data_i_czas}`
         );
         break;
       }
 
+
       const row = {
         ...history[i],
-        data_i_czas: formatDate(new Date(missing)),
+        data_i_czas: formatDate(
+          new Date(missing)
+        ),
       };
+
 
       for (const field of nullFields) {
         row[field] = null;
       }
 
+
       filled.push(row);
 
-      missing = nextTimestamp(missing, direction);
+
+      missing = nextTimestamp(
+        missing,
+        direction
+      );
     }
   }
 
-  filled.push(history[history.length - 1]);
+
+  const last = history[history.length - 1];
+
+  filled.push({
+    ...last,
+    data_i_czas: formatDate(
+      new Date(
+        normalizeMinute(last.data_i_czas)
+      )
+    )
+  });
+
 
   return filled;
 }

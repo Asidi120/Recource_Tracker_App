@@ -337,7 +337,6 @@ ON tech.usluga_id = u.id
                 AND MOD(DAYOFYEAR(ru.data_i_czas),2)=0
             )
     ) x
-    WHERE rn <= 200
 ) ru
 ON ru.usluga_id = u.id
       WHERE u.id = ?
@@ -520,7 +519,7 @@ WHERE
         )
     )
 
-ORDER BY hs.data_i_czas DESC;
+ORDER BY hs.data_i_czas ASC;
     `,
         [req.params.hosting_id, req.params.usluga_id],
       );
