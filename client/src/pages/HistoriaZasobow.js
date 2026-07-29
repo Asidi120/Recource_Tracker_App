@@ -300,7 +300,7 @@ export default function HistoriaZasobow() {
               dataKey="brak_cpu"
               stroke="transparent"
               dot={{ r: 2, fill: "red" }}
-              activeDot={{} r: 5 }}
+              activeDot={{ r: 5 }}
               isAnimationActive={false}
             />
           </LineChart>
