@@ -244,7 +244,7 @@ function HistoriaStatusow() {
             <Line
               type="stepAfter"
               dataKey="statusBrakDanych"
-              stroke="red"
+              stroke="#9ca3af"
               strokeWidth={2}
               strokeDasharray="5 5"
               dot={{ r: 2, fill: "#9ca3af" }}
