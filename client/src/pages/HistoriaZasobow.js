@@ -70,7 +70,6 @@ export default function HistoriaZasobow() {
       });
   }, [id]);
 
-  // Filtrowanie historii przy użyciu useMemo
   const filteredHistoria = useMemo(() => {
     return historia.filter((item) => {
       const itemDate = new Date(item.data_i_czas);
@@ -80,7 +79,6 @@ export default function HistoriaZasobow() {
     });
   }, [historia, dateFrom, dateTo]);
 
-  // Filtrowanie prognozy przy użyciu useMemo
   const filteredPrediction = useMemo(() => {
     return prediction.filter((item) => {
       const itemDate = new Date(item.data_i_czas);
@@ -91,35 +89,46 @@ export default function HistoriaZasobow() {
   }, [prediction, dateFrom, dateTo]);
 
   let lastDisk = null;
+
+  const daneDysk = [...filteredHistoria, ...filteredPrediction].map((item) => {
+    if (item.zuzycie_dysku_mb != null) {
+      lastDisk = item.zuzycie_dysku_mb;
+    }
+
+    return {
+      ...item,
+      brak_dysk:
+        item.zuzycie_dysku_mb == null && item.zuzycie_dysku_prognoza == null
+          ? lastDisk
+          : null,
+    };
+  });
+
   let lastCpu = null;
   let lastRam = null;
   let lastProcesses = null;
 
-  const daneWykresu = [...filteredHistoria, ...filteredPrediction].map(
-    (item) => {
-      if (item.zuzycie_dysku_mb != null) lastDisk = item.zuzycie_dysku_mb;
+  const danePozostale = filteredHistoria.map((item) => {
+    if (item.zuzycie_cpu_procent != null) {
+      lastCpu = item.zuzycie_cpu_procent;
+    }
 
-      if (item.zuzycie_cpu_procent != null) lastCpu = item.zuzycie_cpu_procent;
+    if (item.zuzycie_ramu_mb != null) {
+      lastRam = item.zuzycie_ramu_mb;
+    }
 
-      if (item.zuzycie_ramu_mb != null) lastRam = item.zuzycie_ramu_mb;
+    if (item.zuzycie_procesow != null) {
+      lastProcesses = item.zuzycie_procesow;
+    }
 
-      if (item.zuzycie_procesow != null) lastProcesses = item.zuzycie_procesow;
+    return {
+      ...item,
+      brak_cpu: item.zuzycie_cpu_procent == null ? lastCpu : null,
+      brak_ram: item.zuzycie_ramu_mb == null ? lastRam : null,
+      brak_procesy: item.zuzycie_procesow == null ? lastProcesses : null,
+    };
+  });
 
-      return {
-        ...item,
-        brak_dysk:
-          item.zuzycie_dysku_mb == null && item.zuzycie_dysku_prognoza == null
-            ? lastDisk
-            : null,
-
-        brak_cpu: item.zuzycie_cpu_procent == null ? lastCpu : null,
-
-        brak_ram: item.zuzycie_ramu_mb == null ? lastRam : null,
-
-        brak_procesy: item.zuzycie_procesow == null ? lastProcesses : null,
-      };
-    },
-  );
   if (loading) {
     return (
       <div className="history-details-container">
@@ -166,7 +175,7 @@ export default function HistoriaZasobow() {
       <div className="history-chart">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
-            data={daneWykresu}
+            data={daneDysk}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
@@ -266,7 +275,7 @@ export default function HistoriaZasobow() {
       <div className="history-chart">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
-            data={daneWykresu}
+            data={danePozostale}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
@@ -311,7 +320,7 @@ export default function HistoriaZasobow() {
       <div className="history-chart">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
-            data={daneWykresu}
+            data={danePozostale}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
@@ -360,7 +369,7 @@ export default function HistoriaZasobow() {
       <div className="history-chart">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
-            data={daneWykresu}
+            data={danePozostale}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" />

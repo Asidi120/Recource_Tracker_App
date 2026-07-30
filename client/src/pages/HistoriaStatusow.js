@@ -31,7 +31,7 @@ function HistoriaStatusow() {
         setLoading(false);
       })
       .catch((err) => {
-        console.error("Błąd pobierania danych:", err);
+        console.log("Błąd pobierania danych:", err);
         setLoading(false);
       });
   }, [hosting_id, usluga_id]);
@@ -163,7 +163,7 @@ function HistoriaStatusow() {
             />
             <Line
               dataKey="brak_ping"
-              stroke="transparent"
+              stroke="red"
               dot={{ r: 2, fill: "red" }}
               activeDot={false}
               isAnimationActive={false}
@@ -244,7 +244,7 @@ function HistoriaStatusow() {
             <Line
               type="stepAfter"
               dataKey="statusBrakDanych"
-              stroke="#9ca3af"
+              stroke="red"
               strokeWidth={2}
               strokeDasharray="5 5"
               dot={{ r: 2, fill: "#9ca3af" }}
