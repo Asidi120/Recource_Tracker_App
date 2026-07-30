@@ -37,12 +37,19 @@ function StronaGlowna() {
       const baza = await bazaResponse.json();
 
 
-      console.log("===== INFORMACJE O BAZIE =====");
-      console.log("Aktualny rozmiar:", baza.rozmiar_mb, "MB");
-      console.log("Data pomiaru:", baza.data_i_czas);
-      console.log("Średni wzrost:", baza.sredni_wzrost, "MB/dzień");
-      console.log("Przewidywana data pełna:", baza.przewidywana_data);
-      console.log("==============================");
+      const today = new Date().toISOString().slice(0, 10);
+      const lastLogDate = localStorage.getItem("dbInfoLogDate");
+
+      if (lastLogDate !== today) {
+        console.log("===== INFORMACJE O BAZIE =====");
+        console.log("Aktualny rozmiar:", baza.rozmiar_mb, "MB");
+        console.log("Data pomiaru:", baza.data_i_czas.slice(0,-3));
+        console.log("Średni wzrost:", Number(baza.sredni_wzrost).toFixed(2), "MB/dzień");
+        console.log("Przewidywana data pełna:", new Date(baza.przewidywana_data).toLocaleString("pl-PL").slice(0, -3));
+        console.log("==============================");
+
+        localStorage.setItem("dbInfoLogDate", today);
+      }
 
 
     } catch(err) {
