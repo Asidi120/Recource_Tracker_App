@@ -16,7 +16,6 @@ function StatusStron() {
         .then((res) => res.json())
         .then((data) => {
           setStatusData(data);
-          console.log("Dane statusu stron:", data);
         })
         .catch((err) => console.error("Błąd API:", err));
     };

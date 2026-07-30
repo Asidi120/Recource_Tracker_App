@@ -45,7 +45,7 @@ function StronaGlowna() {
         console.log("Aktualny rozmiar:", baza.rozmiar_mb, "MB");
         console.log("Data pomiaru:", baza.data_i_czas.slice(0,-3));
         console.log("Średni wzrost:", Number(baza.sredni_wzrost).toFixed(2), "MB/dzień");
-        console.log("Przewidywana data pełna:", new Date(baza.przewidywana_data).toLocaleString("pl-PL").slice(0, -3));
+        console.log("Przewidywana data zapełnienia bazy:", new Date(baza.przewidywana_data).toLocaleString("pl-PL").slice(0, -3));
         console.log("==============================");
 
         localStorage.setItem("dbInfoLogDate", today);

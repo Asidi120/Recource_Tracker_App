@@ -120,7 +120,6 @@ export default function HistoriaZasobow() {
       };
     },
   );
-  console.log("Dane wykresu dysku:", daneWykresu);
   if (loading) {
     return (
       <div className="history-details-container">
@@ -206,7 +205,7 @@ export default function HistoriaZasobow() {
             />
             <Line
               dataKey="brak_dysk"
-              stroke="transparent"
+              stroke="red"
               dot={{ r: 2, fill: "red" }}
               activeDot={{ r: 5 }}
               isAnimationActive={false}
@@ -298,7 +297,7 @@ export default function HistoriaZasobow() {
             />
             <Line
               dataKey="brak_cpu"
-              stroke="transparent"
+              stroke="red"
               dot={{ r: 2, fill: "red" }}
               activeDot={{ r: 5 }}
               isAnimationActive={false}
@@ -347,7 +346,7 @@ export default function HistoriaZasobow() {
             />
             <Line
               dataKey="brak_ram"
-              stroke="transparent"
+              stroke="red"
               dot={{ r: 2, fill: "red" }}
               activeDot={{ r: 5 }}
               isAnimationActive={false}
@@ -389,7 +388,7 @@ export default function HistoriaZasobow() {
             />
             <Line
               dataKey="brak_procesy"
-              stroke="transparent"
+              stroke="red"
               dot={{ r: 2, fill: "red" }}
               activeDot={{ r: 5 }}
               isAnimationActive={false}
