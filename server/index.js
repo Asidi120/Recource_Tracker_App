@@ -31,7 +31,7 @@ const checkAuth = (req, res, next) => {
 console.log("- Uruchamianie Serwera API odbiorczego -");
 
 //czyszenie starych danych
-cron.schedule("* * * * *", async () => {
+cron.schedule("0 3 * * *", async () => {
     let db;
 
     try {

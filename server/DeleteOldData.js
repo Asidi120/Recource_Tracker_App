@@ -6,7 +6,7 @@ export async function DeleteOldData(db) {
         FROM ZUZYCIE_ZASOBOW z
         JOIN (
             SELECT hosting_id,
-                   DATE_SUB(MAX(data_i_czas), INTERVAL 7 DAY) AS granica
+                   DATE_SUB(MAX(data_i_czas), INTERVAL 18 MONTH) AS granica
             FROM ZUZYCIE_ZASOBOW
             GROUP BY hosting_id
         ) x ON z.hosting_id = x.hosting_id
@@ -21,7 +21,7 @@ export async function DeleteOldData(db) {
             ON r.usluga_id = u.id
         JOIN (
             SELECT u2.hosting_id,
-                   DATE_SUB(MAX(r2.data_i_czas), INTERVAL 7 DAY) AS granica
+                   DATE_SUB(MAX(r2.data_i_czas), INTERVAL 18 MONTH) AS granica
             FROM ROZMIAR_USLUGI r2
             JOIN USLUGI u2 
                 ON r2.usluga_id = u2.id
@@ -39,7 +39,7 @@ export async function DeleteOldData(db) {
             ON h.usluga_id = u.id
         JOIN (
             SELECT u2.hosting_id,
-                   DATE_SUB(MAX(h2.data_i_czas), INTERVAL 7 DAY) AS granica
+                   DATE_SUB(MAX(h2.data_i_czas), INTERVAL 18 MONTH) AS granica
             FROM HISTORIA_STATUSU h2
             JOIN USLUGI u2
                 ON h2.usluga_id = u2.id
@@ -54,7 +54,7 @@ export async function DeleteOldData(db) {
         DELETE FROM ROZMIAR_BAZA_DANYCH
         WHERE data_i_czas < (
             SELECT granica FROM (
-                SELECT DATE_SUB(MAX(data_i_czas), INTERVAL 7 DAY) AS granica
+                SELECT DATE_SUB(MAX(data_i_czas), INTERVAL 18 MONTH) AS granica
                 FROM ROZMIAR_BAZA_DANYCH
             ) tmp
         )
@@ -66,7 +66,7 @@ export async function DeleteOldData(db) {
         WHERE data_zamkniecia IS NOT NULL
         AND data_zamkniecia < (
             SELECT granica FROM (
-                SELECT DATE_SUB(MAX(data_utworzenia), INTERVAL 7 DAY) AS granica
+                SELECT DATE_SUB(MAX(data_utworzenia), INTERVAL 18 MONTH) AS granica
                 FROM ALARMY
             ) tmp
         )
