@@ -90,7 +90,7 @@ export default function HistoriaZasobow() {
 
   let lastDisk = null;
 
-  const daneDysk = [...[...filteredHistoria, ...filteredPrediction]].reverse().map((item) => {
+  const daneDysk = [...filteredHistoria, ...filteredPrediction].map((item) => {
     if (item.zuzycie_dysku_mb != null) {
       lastDisk = item.zuzycie_dysku_mb;
     }
@@ -108,7 +108,7 @@ export default function HistoriaZasobow() {
   let lastRam = null;
   let lastProcesses = null;
 
-  const danePozostale = [...filteredHistoria].reverse().map((item) => {
+  const danePozostale = filteredHistoria.map((item) => {
     if (item.zuzycie_cpu_procent != null) {
       lastCpu = item.zuzycie_cpu_procent;
     }
@@ -137,6 +137,7 @@ export default function HistoriaZasobow() {
     );
   }
   const limitDysku = historia[0]?.limit_dysku_mb;
+  const tabledata= [...filteredHistoria].reverse();
   return (
     <div className="history-details-container">
       <h2 className="history-details-title">Historia zużycia zasobów</h2>
@@ -433,7 +434,7 @@ export default function HistoriaZasobow() {
             </tr>
           </thead>
           <tbody>
-            {[...filteredHistoria].reverse().map((d, i) => (
+            {tabledata.map((d, i) => (
               <tr key={i}>
                 <td>
                   {d.data_i_czas ? d.data_i_czas.slice(0, -3) : "Brak danych"}
