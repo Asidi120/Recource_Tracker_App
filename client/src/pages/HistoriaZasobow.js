@@ -22,6 +22,8 @@ export default function HistoriaZasobow() {
   const [prediction, setPrediction] = useState([]);
   const [averageGrowth30Days, setAverageGrowth30Days] = useState(null);
   const [predictedFullDate, setPredictedFullDate] = useState(null);
+  const [tablePage, setTablePage] = useState(1);
+  const rowsPerPage = 50;
   useEffect(() => {
     if (!id) return;
 
@@ -140,6 +142,17 @@ export default function HistoriaZasobow() {
   }
   const limitDysku = historia[0]?.limit_dysku_mb;
   const tabledata= [...filteredHistoria].reverse();
+
+  const tabledata = useMemo(() => {
+  return [...filteredHistoria].reverse();
+  }, [filteredHistoria]);
+
+  const totalPages = Math.ceil(tabledata.length / rowsPerPage);
+
+  const paginatedTableData = useMemo(() => {
+    const start = (tablePage - 1) * rowsPerPage;
+    return tabledata.slice(start, start + rowsPerPage);
+  }, [tabledata, tablePage]);
   return (
     <div className="history-details-container">
       <h2 className="history-details-title">Historia zużycia zasobów</h2>
@@ -428,71 +441,97 @@ export default function HistoriaZasobow() {
       </div>
 
       {/* TABELA */}
-      <h3 className="history-table-title">Historia zmian</h3>
-      <div className="history-table-wrapper">
-        <table className="history-table">
-          <thead>
-            <tr>
-              <th>Data i czas</th>
-              <th>CPU %</th>
-              <th>RAM MB</th>
-              <th>Dysk MB</th>
-              <th>Procesy</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tabledata.map((d, i) => (
-              <tr key={i}>
-                <td>
-                  {d.data_i_czas ? d.data_i_czas.slice(0, -3) : "Brak danych"}
-                </td>
+<h3 className="history-table-title">Historia zmian</h3>
 
-                {/* CPU */}
-                <td className="cpu">
-                  {d.zuzycie_cpu_procent === null ||
-                  d.zuzycie_cpu_procent === undefined ? (
-                    "Brak danych"
-                  ) : (
-                    <>
-                      {Number(d.zuzycie_cpu_procent)
-                        .toFixed(2)
-                        .replace(/\.00$/, "")}
-                      %
-                    </>
-                  )}
-                </td>
+<div className="history-table-wrapper">
+  <table className="history-table">
+    <thead>
+      <tr>
+        <th>Data i czas</th>
+        <th>CPU %</th>
+        <th>RAM MB</th>
+        <th>Dysk MB</th>
+        <th>Procesy</th>
+      </tr>
+    </thead>
 
-                {/* RAM */}
-                <td className="ram">
-                  {d.zuzycie_ramu_mb === null || d.zuzycie_ramu_mb === undefined
-                    ? "Brak danych"
-                    : Number(d.zuzycie_ramu_mb).toFixed(2).replace(/\.00$/, "")}
-                </td>
+    <tbody>
+      {paginatedTableData.map((d, i) => (
+        <tr key={i}>
+          <td>
+            {d.data_i_czas ? d.data_i_czas.slice(0, -3) : "Brak danych"}
+          </td>
 
-                {/* DYSK */}
-                <td className="disk">
-                  {d.zuzycie_dysku_mb === null ||
-                  d.zuzycie_dysku_mb === undefined
-                    ? "Brak danych"
-                    : Number(d.zuzycie_dysku_mb)
-                        .toFixed(2)
-                        .replace(/\.00$/, "")}
-                </td>
+          {/* CPU */}
+          <td className="cpu">
+            {d.zuzycie_cpu_procent === null ||
+            d.zuzycie_cpu_procent === undefined
+              ? "Brak danych"
+              : `${Number(d.zuzycie_cpu_procent)
+                  .toFixed(2)
+                  .replace(/\.00$/, "")}%`}
+          </td>
 
-                {/* PROCESY */}
-                <td className="processes">
-                  {d.zuzycie_procesow === null ||
-                  d.zuzycie_procesow === undefined
-                    ? "Brak danych"
-                    : Number(d.zuzycie_procesow)
-                        .toFixed(2)
-                        .replace(/\.00$/, "")}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          {/* RAM */}
+          <td className="ram">
+            {d.zuzycie_ramu_mb === null ||
+            d.zuzycie_ramu_mb === undefined
+              ? "Brak danych"
+              : Number(d.zuzycie_ramu_mb)
+                  .toFixed(2)
+                  .replace(/\.00$/, "")}
+          </td>
+
+          {/* DYSK */}
+          <td className="disk">
+            {d.zuzycie_dysku_mb === null ||
+            d.zuzycie_dysku_mb === undefined
+              ? "Brak danych"
+              : Number(d.zuzycie_dysku_mb)
+                  .toFixed(2)
+                  .replace(/\.00$/, "")}
+          </td>
+
+          {/* PROCESY */}
+          <td className="processes">
+            {d.zuzycie_procesow === null ||
+            d.zuzycie_procesow === undefined
+              ? "Brak danych"
+              : Number(d.zuzycie_procesow)
+                  .toFixed(2)
+                  .replace(/\.00$/, "")}
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+
+{/* PAGINACJA */}
+<div className="pagination">
+
+  <button
+    disabled={tablePage === 1}
+    onClick={() => setTablePage((p) => p - 1)}
+  >
+    Poprzednia
+  </button>
+
+
+  <span>
+    Strona {tablePage} / {totalPages || 1}
+  </span>
+
+
+  <button
+    disabled={tablePage === totalPages || totalPages === 0}
+    onClick={() => setTablePage((p) => p + 1)}
+  >
+    Następna
+  </button>
+
+</div>
     </div>
   );
 }
