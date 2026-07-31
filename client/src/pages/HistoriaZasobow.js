@@ -141,7 +141,6 @@ export default function HistoriaZasobow() {
     );
   }
   const limitDysku = historia[0]?.limit_dysku_mb;
-  const tabledata= [...filteredHistoria].reverse();
 
   const tabledata = useMemo(() => {
   return [...filteredHistoria].reverse();
