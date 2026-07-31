@@ -68,7 +68,7 @@ function ResourceTable({ data, rowsPerPage = 100 }) {
           </tbody>
         </table>
       </div>
-
+      <div className="pagination-container">
       <div className="pagination">
         <button
           className="pagination-button"
@@ -90,6 +90,7 @@ function ResourceTable({ data, rowsPerPage = 100 }) {
           Następna
         </button>
       </div>
+    </div>
     </>
   );
 }
