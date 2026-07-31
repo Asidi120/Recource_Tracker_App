@@ -90,7 +90,7 @@ export default function HistoriaZasobow() {
 
   let lastDisk = null;
 
-  const daneDysk = [...filteredHistoria, ...filteredPrediction].map((item) => {
+  const daneDysk = [...[...filteredHistoria, ...filteredPrediction]].reverse().map((item) => {
     if (item.zuzycie_dysku_mb != null) {
       lastDisk = item.zuzycie_dysku_mb;
     }
@@ -108,7 +108,7 @@ export default function HistoriaZasobow() {
   let lastRam = null;
   let lastProcesses = null;
 
-  const danePozostale = filteredHistoria.map((item) => {
+  const danePozostale = [...filteredHistoria].reverse().map((item) => {
     if (item.zuzycie_cpu_procent != null) {
       lastCpu = item.zuzycie_cpu_procent;
     }
@@ -291,10 +291,14 @@ export default function HistoriaZasobow() {
               labelFormatter={(value) =>
                 new Date(value).toLocaleString("pl-PL").slice(0, -3)
               }
-              formatter={(value) => [
+                formatter={(value, name) => {
+                if (name === "brak_cpu") {
+                  return ["Brak danych", "CPU"];
+                }
+                return [
                 `${Number(value).toFixed(2).replace(/\.00$/, "")} %`,
                 "CPU",
-              ]}
+              ]}}
             />
             <Line
               type="monotone"
@@ -340,10 +344,14 @@ export default function HistoriaZasobow() {
               labelFormatter={(value) =>
                 new Date(value).toLocaleString("pl-PL").slice(0, -3)
               }
-              formatter={(value) => [
+              formatter={(value, name) => {
+                if (name === "brak_ram") {
+                  return ["Brak danych", "Rozmiar"];
+                }
+                return [
                 `${Number(value).toFixed(2).replace(/\.00$/, "")} MB`,
                 "Rozmiar",
-              ]}
+              ]}}
             />
             <Line
               type="monotone"
@@ -385,7 +393,12 @@ export default function HistoriaZasobow() {
               labelFormatter={(value) =>
                 new Date(value).toLocaleString("pl-PL").slice(0, -3)
               }
-              formatter={(value) => [Number(value).toFixed(0), "Ilość"]}
+              formatter={(value, name) => {
+                if (name === "brak_procesy") {
+                  return ["Brak danych", "Ilość"];
+                }
+                return [
+                  Number(value).toFixed(0), "Ilość"]}}
             />
             <Line
               type="monotone"
