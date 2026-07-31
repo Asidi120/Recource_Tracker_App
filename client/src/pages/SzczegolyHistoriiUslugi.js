@@ -13,7 +13,6 @@ import {
 } from "recharts";
 import "../styles/Style.css";
 
-// Osobny komponent dla tabeli z paginacją
 function ServiceHistoryTable({ data, rowsPerPage = 50 }) {
   const [tablePage, setTablePage] = useState(1);
 
@@ -62,18 +61,18 @@ function ServiceHistoryTable({ data, rowsPerPage = 50 }) {
           </tbody>
         </table>
       </div>
-
+      <div className="pagination-container">
       <div className="pagination">
         <button
           className="pagination-button"
           disabled={tablePage === 1}
           onClick={() => setTablePage((p) => p - 1)}
         >
-          Previous
+          Poprzednia
         </button>
 
         <span>
-          Page {tablePage} of {totalPages || 1}
+          Strona {tablePage} z {totalPages || 1}
         </span>
 
         <button
@@ -81,8 +80,9 @@ function ServiceHistoryTable({ data, rowsPerPage = 50 }) {
           disabled={tablePage === totalPages || totalPages === 0}
           onClick={() => setTablePage((p) => p + 1)}
         >
-          Next
+          Następna
         </button>
+      </div>
       </div>
     </>
   );

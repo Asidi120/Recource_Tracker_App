@@ -76,18 +76,18 @@ const StatusHistoryTable = React.memo(function StatusHistoryTable({
           </tbody>
         </table>
       </div>
-
+      <div className="pagination-container">
       <div className="pagination">
         <button
           className="pagination-button"
           disabled={tablePage === 1}
           onClick={() => setTablePage((p) => p - 1)}
         >
-          Previous
+          Poprzednia
         </button>
 
         <span>
-          Page {tablePage} of {totalPages || 1}
+          Strona {tablePage} z {totalPages || 1}
         </span>
 
         <button
@@ -95,8 +95,9 @@ const StatusHistoryTable = React.memo(function StatusHistoryTable({
           disabled={tablePage === totalPages || totalPages === 0}
           onClick={() => setTablePage((p) => p + 1)}
         >
-          Next
+          Następna
         </button>
+      </div>
       </div>
     </>
   );
