@@ -87,7 +87,7 @@ export default function HistoriaZasobow() {
       return fromOk && toOk;
     });
   }, [prediction, dateFrom, dateTo]);
-
+  console.log(filteredHistoria.length);
   let lastDisk = null;
   const historiaReverse = useMemo(
   () => [...filteredHistoria].reverse(),
