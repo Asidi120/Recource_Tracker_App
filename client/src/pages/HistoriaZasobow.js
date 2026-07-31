@@ -112,7 +112,14 @@ export default function HistoriaZasobow() {
   let lastRam = null;
   let lastProcesses = null;
 
-  const danePozostale = [...historiaReverse].map((item) => {
+  const danePozostale = useMemo(() => {
+
+  let lastCpu = null;
+  let lastRam = null;
+  let lastProcesses = null;
+
+  return historiaReverse.map((item) => {
+
     if (item.zuzycie_cpu_procent != null) {
       lastCpu = item.zuzycie_cpu_procent;
     }
@@ -125,13 +132,28 @@ export default function HistoriaZasobow() {
       lastProcesses = item.zuzycie_procesow;
     }
 
+
     return {
       ...item,
-      brak_cpu: item.zuzycie_cpu_procent == null ? lastCpu : null,
-      brak_ram: item.zuzycie_ramu_mb == null ? lastRam : null,
-      brak_procesy: item.zuzycie_procesow == null ? lastProcesses : null,
+      brak_cpu:
+        item.zuzycie_cpu_procent == null
+          ? lastCpu
+          : null,
+
+      brak_ram:
+        item.zuzycie_ramu_mb == null
+          ? lastRam
+          : null,
+
+      brak_procesy:
+        item.zuzycie_procesow == null
+          ? lastProcesses
+          : null,
     };
+
   });
+
+}, [historiaReverse]);
     const limitDysku = historia[0]?.limit_dysku_mb;
 
   const tabledata = useMemo(() => {
