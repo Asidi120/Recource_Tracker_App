@@ -108,7 +108,7 @@ export default function HistoriaZasobow() {
   let lastRam = null;
   let lastProcesses = null;
 
-  const danePozostale = [...filteredHistoria.reverse()].map((item) => {
+  const danePozostale = [...filteredHistoria].map((item) => {
     if (item.zuzycie_cpu_procent != null) {
       lastCpu = item.zuzycie_cpu_procent;
     }
