@@ -14,8 +14,7 @@ import {
 import { useParams } from "react-router-dom";
 
 
-// Osobny komponent dla Tabeli i Paginacji
-function ResourceTable({ data, rowsPerPage = 100 }) {
+function ResourceTable({ data, rowsPerPage = 200 }) {
   const [tablePage, setTablePage] = useState(1);
 
   const totalPages = Math.ceil(data.length / rowsPerPage);
@@ -239,9 +238,7 @@ export default function HistoriaZasobow() {
 }, [historiaReverse]);
     const limitDysku = historia[0]?.limit_dysku_mb;
 
-  const tabledata = useMemo(() => {
-  return [...filteredHistoria].reverse();
-  }, [filteredHistoria]);
+  const tabledata = [...filteredHistoria];
 
   const totalPages = Math.ceil(tabledata.length / rowsPerPage);
   useEffect(() => {
@@ -545,8 +542,8 @@ export default function HistoriaZasobow() {
           </LineChart>
         </ResponsiveContainer>
       </div>
-{/* TABELA i PAGINACJA */}
-<ResourceTable data={tabledata} rowsPerPage={100} />
+    {/* TABELA i PAGINACJA */}
+    <ResourceTable data={tabledata} rowsPerPage={200} />
     </div>
   );
 }

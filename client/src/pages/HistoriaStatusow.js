@@ -13,11 +13,7 @@ import {
 import "../styles/Style.css";
 
 // Separated component for the history table with pagination
-const StatusHistoryTable = React.memo(function StatusHistoryTable({
-  data,
-  rowsPerPage = 50,
-  serviceName,
-}) {
+const StatusHistoryTable = React.memo(function StatusHistoryTable({data,rowsPerPage = 200,serviceName,}) {
   const [tablePage, setTablePage] = useState(1);
 
   const totalPages = Math.ceil(data.length / rowsPerPage);
@@ -351,11 +347,7 @@ function HistoriaStatusow() {
       </div>
 
       {/* Paginated history table */}
-      <StatusHistoryTable
-        data={filteredHistoria}
-        rowsPerPage={50}
-        serviceName={filteredHistoria[0]?.nazwa}
-      />
+      <StatusHistoryTable data={filteredHistoria} rowsPerPage={200} serviceName={filteredHistoria[0]?.nazwa}/>
     </div>
   );
 }

@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import "../styles/Style.css";
 
-function ServiceHistoryTable({ data, rowsPerPage = 50 }) {
+function ServiceHistoryTable({ data, rowsPerPage = 200 }) {
   const [tablePage, setTablePage] = useState(1);
 
   const totalPages = Math.ceil(data.length / rowsPerPage);
@@ -329,7 +329,7 @@ function SzczegolyHistoriiUslugi() {
       </p>
 
       {/* Komponent tabeli z paginacją */}
-      <ServiceHistoryTable data={historiaReverse} rowsPerPage={50} />
+      <ServiceHistoryTable data={filteredHistoria} rowsPerPage={200} />
     </div>
   );
 }
