@@ -13,6 +13,88 @@ import {
 } from "recharts";
 import { useParams } from "react-router-dom";
 
+
+// Osobny komponent dla Tabeli i Paginacji
+function ResourceTable({ data, rowsPerPage = 100 }) {
+  const [tablePage, setTablePage] = useState(1);
+
+  const totalPages = Math.ceil(data.length / rowsPerPage);
+
+  const paginatedTableData = useMemo(() => {
+    const start = (tablePage - 1) * rowsPerPage;
+    return data.slice(start, start + rowsPerPage);
+  }, [data, tablePage, rowsPerPage]);
+
+  return (
+    <>
+      <h3 className="history-table-title">Historia zmian</h3>
+      <div className="history-table-wrapper">
+        <table className="history-table">
+          <thead>
+            <tr>
+              <th>Data i czas</th>
+              <th>CPU %</th>
+              <th>RAM MB</th>
+              <th>Dysk MB</th>
+              <th>Procesy</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedTableData.map((d, i) => (
+              <tr key={d.data_i_czas || i}>
+                <td>{d.data_i_czas ? d.data_i_czas.slice(0, -3) : "Brak danych"}</td>
+                <td className="cpu">
+                  {d.zuzycie_cpu_procent == null
+                    ? "Brak danych"
+                    : `${Number(d.zuzycie_cpu_procent).toFixed(2).replace(/\.00$/, "")}%`}
+                </td>
+                <td className="ram">
+                  {d.zuzycie_ramu_mb == null
+                    ? "Brak danych"
+                    : Number(d.zuzycie_ramu_mb).toFixed(2).replace(/\.00$/, "")}
+                </td>
+                <td className="disk">
+                  {d.zuzycie_dysku_mb == null
+                    ? "Brak danych"
+                    : Number(d.zuzycie_dysku_mb).toFixed(2).replace(/\.00$/, "")}
+                </td>
+                <td className="processes">
+                  {d.zuzycie_procesow == null
+                    ? "Brak danych"
+                    : Number(d.zuzycie_procesow).toFixed(2).replace(/\.00$/, "")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="pagination">
+        <button
+          className="pagination-button"
+          disabled={tablePage === 1}
+          onClick={() => setTablePage((p) => p - 1)}
+        >
+          Poprzednia
+        </button>
+
+        <span>
+          Strona {tablePage} z {totalPages || 1}
+        </span>
+
+        <button
+          className="pagination-button"
+          disabled={tablePage === totalPages || totalPages === 0}
+          onClick={() => setTablePage((p) => p + 1)}
+        >
+          Następna
+        </button>
+      </div>
+    </>
+  );
+}
+
+
 export default function HistoriaZasobow() {
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
@@ -462,99 +544,8 @@ export default function HistoriaZasobow() {
           </LineChart>
         </ResponsiveContainer>
       </div>
-
-      {/* TABELA */}
-<h3 className="history-table-title">Historia zmian</h3>
-
-<div className="history-table-wrapper">
-  <table className="history-table">
-    <thead>
-      <tr>
-        <th>Data i czas</th>
-        <th>CPU %</th>
-        <th>RAM MB</th>
-        <th>Dysk MB</th>
-        <th>Procesy</th>
-      </tr>
-    </thead>
-
-    <tbody>
-      {paginatedTableData.map((d, i) => (
-        <tr key={d.data_i_czas || i}>
-          <td>
-            {d.data_i_czas ? d.data_i_czas.slice(0, -3) : "Brak danych"}
-          </td>
-
-          {/* CPU */}
-          <td className="cpu">
-            {d.zuzycie_cpu_procent === null ||
-            d.zuzycie_cpu_procent === undefined
-              ? "Brak danych"
-              : `${Number(d.zuzycie_cpu_procent)
-                  .toFixed(2)
-                  .replace(/\.00$/, "")}%`}
-          </td>
-
-          {/* RAM */}
-          <td className="ram">
-            {d.zuzycie_ramu_mb === null ||
-            d.zuzycie_ramu_mb === undefined
-              ? "Brak danych"
-              : Number(d.zuzycie_ramu_mb)
-                  .toFixed(2)
-                  .replace(/\.00$/, "")}
-          </td>
-
-          {/* DYSK */}
-          <td className="disk">
-            {d.zuzycie_dysku_mb === null ||
-            d.zuzycie_dysku_mb === undefined
-              ? "Brak danych"
-              : Number(d.zuzycie_dysku_mb)
-                  .toFixed(2)
-                  .replace(/\.00$/, "")}
-          </td>
-
-          {/* PROCESY */}
-          <td className="processes">
-            {d.zuzycie_procesow === null ||
-            d.zuzycie_procesow === undefined
-              ? "Brak danych"
-              : Number(d.zuzycie_procesow)
-                  .toFixed(2)
-                  .replace(/\.00$/, "")}
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</div>
-
-
-{/* PAGINACJA */}
-<div className="pagination">
-
-  <button className="pagination-button"
-    disabled={tablePage === 1}
-    onClick={() => setTablePage((p) => p - 1)}
-  >
-    Poprzednia
-  </button>
-
-
-  <span>
-    Strona {tablePage} / {totalPages || 1}
-  </span>
-
-
-  <button className="pagination-button"
-    disabled={tablePage === totalPages || totalPages === 0}
-    onClick={() => setTablePage((p) => p + 1)}
-  >
-    Następna
-  </button>
-
-</div>
+{/* TABELA i PAGINACJA */}
+<ResourceTable data={tabledata} rowsPerPage={100} />
     </div>
   );
 }
