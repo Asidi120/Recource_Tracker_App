@@ -68,6 +68,7 @@ CREATE TABLE ALARMY (
     aktywny TINYINT(1) DEFAULT 1,
     data_utworzenia DATETIME DEFAULT CURRENT_TIMESTAMP,
     data_zamkniecia DATETIME NULL
+    FOREIGN KEY (hosting_id) REFERENCES KONTO_HOSTINGOWE(id)
 );
 
 INSERT INTO TECHNOLOGIE (nazwa) VALUES 
@@ -128,5 +129,20 @@ CREATE INDEX idx_ut_technologia
 ON USLUGI_TECHNOLOGIE(technologia_id);
 
 -- Szybsze pobieranie ostatniego rozmiaru bazy
+CREATE INDEX idx_db_data
+ON ROZMIAR_BAZA_DANYCH(data_i_czas DESC);
+
+CREATE INDEX idx_zasoby_data
+ON ZUZYCIE_ZASOBOW(hosting_id, data_i_czas);
+
+CREATE INDEX idx_rozmiar_uslugi_data
+ON ROZMIAR_USLUGI(usluga_id, data_i_czas);
+
+CREATE INDEX idx_status_data
+ON HISTORIA_STATUSU(usluga_id, data_i_czas);
+
+CREATE INDEX idx_alarmy_data
+ON ALARMY(data_zamkniecia);
+
 CREATE INDEX idx_db_data
 ON ROZMIAR_BAZA_DANYCH(data_i_czas DESC);

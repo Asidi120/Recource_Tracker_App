@@ -9,7 +9,8 @@ import { InsertStatusInfo } from "./InsertStatusInfo.js";
 import { CheckHostingID } from "./CheckHostingID.js"; 
 import { StartApi } from "./ApiSender.js";
 import { InsertDBSize} from "./GetDBSize.js";
-
+import { DeleteOldData } from "./DeleteOldData.js";
+import cron from "node-cron";
 
 const app = express();
 app.use(cors());
@@ -28,6 +29,21 @@ const checkAuth = (req, res, next) => {
 };
 
 console.log("- Uruchamianie Serwera API odbiorczego -");
+
+//czyszenie starych danych
+cron.schedule("0 3 * * *", async () => {
+    let db;
+
+    try {
+        db = await DbConnection();
+        await DeleteOldData(db);
+        console.log("Stare dane usunięte");
+    } catch(err) {
+        console.error("Błąd czyszczenia:", err);
+    } finally {
+        if(db) await db.end();
+    }
+});
 
 // 1. ENDPOINT: Zużycie zasobów (zuzycie_zasobow.json)
 app.post("/api/zasoby/post", checkAuth, async (req, res) => {
@@ -85,7 +101,7 @@ app.post("/api/status/post", checkAuth, async (req, res) => {
     db = await DbConnection();
     const hostingId = await CheckHostingID(db, nick, panel);
     await InsertStatusInfo(db, hostingId, dane);
-    const info = await InsertDBSize(db);
+    const info = await InsertDBSize(db); // informacje o zajetosci bazy danych
     res.status(200).json({ success: true, message: "Status zapisany" });
   } catch (err) {
     res.status(500).json({ error: err.message });

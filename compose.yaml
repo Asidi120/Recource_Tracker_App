@@ -19,8 +19,6 @@ services:
       PORT: ${PORT}
       GOOGLE_CHAT_WEBHOOK: ${GOOGLE_CHAT_WEBHOOK}
       MAX_DB_SIZE: ${MAX_DB_SIZE}
-    # ports:
-    #   - "${PORT}:${PORT}"
     depends_on:
       db:
         condition: service_healthy
