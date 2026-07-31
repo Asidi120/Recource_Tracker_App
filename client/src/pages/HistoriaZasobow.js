@@ -534,7 +534,7 @@ export default function HistoriaZasobow() {
 {/* PAGINACJA */}
 <div className="pagination">
 
-  <button
+  <button className="pagination-button"
     disabled={tablePage === 1}
     onClick={() => setTablePage((p) => p - 1)}
   >
@@ -547,7 +547,7 @@ export default function HistoriaZasobow() {
   </span>
 
 
-  <button
+  <button className="pagination-button"
     disabled={tablePage === totalPages || totalPages === 0}
     onClick={() => setTablePage((p) => p + 1)}
   >
