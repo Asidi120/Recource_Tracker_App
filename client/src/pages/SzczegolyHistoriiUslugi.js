@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { CustomTick } from "../components/CustomTick";
 import {
@@ -12,6 +12,81 @@ import {
   ReferenceLine,
 } from "recharts";
 import "../styles/Style.css";
+
+// Osobny komponent dla tabeli z paginacją
+function ServiceHistoryTable({ data, rowsPerPage = 50 }) {
+  const [tablePage, setTablePage] = useState(1);
+
+  const totalPages = Math.ceil(data.length / rowsPerPage);
+
+  const paginatedTableData = useMemo(() => {
+    const start = (tablePage - 1) * rowsPerPage;
+    return data.slice(start, start + rowsPerPage);
+  }, [data, tablePage, rowsPerPage]);
+
+  return (
+    <>
+      <h3 className="history-table-title">Historia zmian</h3>
+
+      <div className="history-table-wrapper">
+        <table className="history-table">
+          <thead>
+            <tr className="history-table-head-row">
+              <th className="history-table-head">Data i czas</th>
+              <th className="history-table-head">Rozmiar</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedTableData.map((row, index) => (
+              <tr key={row.data_i_czas || index} className="history-table-row">
+                <td className="history-table-date">
+                  {row.data_i_czas
+                    ? new Date(row.data_i_czas).toLocaleString("pl-PL").slice(0, -3)
+                    : "Brak danych"}
+                </td>
+
+                {row.rozmiar_mb === null ? (
+                  <td className="history-table-size" style={{ color: "red" }}>
+                    Brak danych
+                  </td>
+                ) : (
+                  <td className="history-table-size">
+                    {Number(row.rozmiar_mb).toFixed(2).slice(-2) === "00"
+                      ? Number(row.rozmiar_mb).toFixed(0)
+                      : Number(row.rozmiar_mb).toFixed(2)}{" "}
+                    MB
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="pagination">
+        <button
+          className="pagination-button"
+          disabled={tablePage === 1}
+          onClick={() => setTablePage((p) => p - 1)}
+        >
+          Previous
+        </button>
+
+        <span>
+          Page {tablePage} of {totalPages || 1}
+        </span>
+
+        <button
+          className="pagination-button"
+          disabled={tablePage === totalPages || totalPages === 0}
+          onClick={() => setTablePage((p) => p + 1)}
+        >
+          Next
+        </button>
+      </div>
+    </>
+  );
+}
 
 function SzczegolyHistoriiUslugi() {
   const { id } = useParams();
@@ -31,17 +106,56 @@ function SzczegolyHistoriiUslugi() {
     fetch(`/api/historia_uslug/${id}`)
       .then((res) => res.json())
       .then((data) => {
-        setHistoria(data.historia);
-        setPrediction(data.predykcja);
+        setHistoria(data.historia || []);
+        setPrediction(data.predykcja || []);
         setAverageGrowth30Days(data.srednie_wzrost);
         setPredictedFullDate(data.przewidziana_data_pelna);
         setLoading(false);
       })
       .catch((err) => {
-        console.error("Błąd pobierania szczegółów:", err);
+        console.error("Error fetching details:", err);
         setLoading(false);
       });
   }, [id]);
+
+  const filteredHistoria = useMemo(() => {
+    return historia.filter((item) => {
+      const itemDate = new Date(item.data_i_czas);
+      const fromOk = !dateFrom || itemDate >= new Date(dateFrom);
+      const toOk = !dateTo || itemDate <= new Date(`${dateTo}T23:59:59`);
+      return fromOk && toOk;
+    });
+  }, [historia, dateFrom, dateTo]);
+
+  const filteredPrediction = useMemo(() => {
+    return prediction.filter((item) => {
+      const itemDate = new Date(item.data_i_czas);
+      const fromOk = !dateFrom || itemDate >= new Date(dateFrom);
+      const toOk = !dateTo || itemDate <= new Date(`${dateTo}T23:59:59`);
+      return fromOk && toOk;
+    });
+  }, [prediction, dateFrom, dateTo]);
+
+  const historiaReverse = useMemo(
+    () => [...filteredHistoria].reverse(),
+    [filteredHistoria]
+  );
+
+  const daneWykresu = useMemo(() => {
+    let lastSize = null;
+    return [...historiaReverse, ...filteredPrediction].map((item) => {
+      if (item.rozmiar_mb !== null && item.rozmiar_mb !== undefined) {
+        lastSize = item.rozmiar_mb;
+      }
+
+      const isMissing = item.rozmiar_mb === null && item.rozmiar_prognoza == null;
+
+      return {
+        ...item,
+        brak_danych: isMissing ? lastSize : null,
+      };
+    });
+  }, [historiaReverse, filteredPrediction]);
 
   if (loading) {
     return (
@@ -60,41 +174,8 @@ function SzczegolyHistoriiUslugi() {
     );
   }
 
-  const filteredHistoria = historia.filter((item) => {
-    const itemDate = new Date(item.data_i_czas);
-
-    const fromOk = !dateFrom || itemDate >= new Date(dateFrom);
-    const toOk = !dateTo || itemDate <= new Date(`${dateTo}T23:59:59`);
-
-    return fromOk && toOk;
-  });
-  const filteredPrediction = prediction.filter((item) => {
-    const itemDate = new Date(item.data_i_czas);
-
-    const fromOk = !dateFrom || itemDate >= new Date(dateFrom);
-    const toOk = !dateTo || itemDate <= new Date(`${dateTo}T23:59:59`);
-
-    return fromOk && toOk;
-  });
-
-  let lastSize = null;
-
-  const daneWykresu = [
-    ...filteredHistoria.reverse(),
-    ...filteredPrediction,
-  ].map((item) => {
-    if (item.rozmiar_mb !== null) {
-      lastSize = item.rozmiar_mb;
-    }
-
-    const isMissing = item.rozmiar_mb === null && item.rozmiar_prognoza == null;
-
-    return {
-      ...item,
-      brak_danych: isMissing ? lastSize : null,
-    };
-  });
   const limitDysku = historia[0]?.limit_dysku_mb;
+
   return (
     <div className="history-details-container">
       <h2 className="history-details-title">Szczegóły historii usługi</h2>
@@ -194,7 +275,7 @@ function SzczegolyHistoriiUslugi() {
             <Line
               dataKey="brak_danych"
               stroke="red"
-              dot={{ r: 3, fill: "red" }}
+              dot={{ r: 2, fill: "red" }}
               activeDot={{ r: 5 }}
               strokeOpacity={0}
               isAnimationActive={false}
@@ -210,7 +291,7 @@ function SzczegolyHistoriiUslugi() {
               activeDot={{ r: 5 }}
               isAnimationActive={false}
             />
-            {historia[0].typ === "serwer" && (
+            {historia[0]?.typ === "serwer" && (
               <ReferenceLine
                 y={limitDysku * 0.9}
                 stroke="orange"
@@ -219,7 +300,7 @@ function SzczegolyHistoriiUslugi() {
               />
             )}
 
-            {historia[0].typ === "serwer" && (
+            {historia[0]?.typ === "serwer" && (
               <ReferenceLine
                 y={limitDysku}
                 stroke="red"
@@ -246,42 +327,9 @@ function SzczegolyHistoriiUslugi() {
           : null}
         <br />
       </p>
-      <h3 className="history-table-title">Historia zmian</h3>
 
-      <div className="history-table-wrapper">
-        <table className="history-table">
-          <thead>
-            <tr className="history-table-head-row">
-              <th className="history-table-head">Data i czas</th>
-              <th className="history-table-head">Rozmiar</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredHistoria.reverse().map((row, index) => (
-              <tr key={index} className="history-table-row">
-                <td className="history-table-date">
-                  {new Date(row.data_i_czas)
-                    .toLocaleString("pl-PL")
-                    .slice(0, -3)}
-                </td>
-
-                {row.rozmiar_mb === null ? (
-                  <td className="history-table-size" style={{ color: "red" }}>
-                    Brak danych
-                  </td>
-                ) : (
-                  <td className="history-table-size">
-                    {Number(row.rozmiar_mb).toFixed(2).slice(-2) === "00"
-                      ? Number(row.rozmiar_mb).toFixed(0)
-                      : Number(row.rozmiar_mb).toFixed(2)}{" "}
-                    MB
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* Komponent tabeli z paginacją */}
+      <ServiceHistoryTable data={historiaReverse} rowsPerPage={50} />
     </div>
   );
 }

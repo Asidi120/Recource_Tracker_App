@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { CustomTick } from "../components/CustomTick";
 import {
@@ -11,6 +11,96 @@ import {
   Tooltip,
 } from "recharts";
 import "../styles/Style.css";
+
+// Separated component for the history table with pagination
+const StatusHistoryTable = React.memo(function StatusHistoryTable({
+  data,
+  rowsPerPage = 50,
+  serviceName,
+}) {
+  const [tablePage, setTablePage] = useState(1);
+
+  const totalPages = Math.ceil(data.length / rowsPerPage);
+
+  const paginatedTableData = useMemo(() => {
+    const start = (tablePage - 1) * rowsPerPage;
+    return data.slice(start, start + rowsPerPage);
+  }, [data, tablePage, rowsPerPage]);
+
+  return (
+    <>
+      <h3 className="history-table-title">Historia zmian</h3>
+      <h4 className="account-nickname">{serviceName || "Brak danych"}</h4>
+      <br />
+      <div className="history-table-wrapper">
+        <table className="history-table">
+          <thead>
+            <tr>
+              <th>Data i czas</th>
+              <th>Status</th>
+              <th>Ping [ms]</th>
+              <th>Błąd</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {paginatedTableData.map((row, index) => (
+              <tr key={row.data_i_czas || index}>
+                <td>
+                  {row.data_i_czas
+                    ? new Date(row.data_i_czas)
+                        .toLocaleString("pl-PL")
+                        .slice(0, -3)
+                    : "Brak danych"}
+                </td>
+                <td
+                  className={
+                    row.status === "online"
+                      ? "success"
+                      : row.status === "offline"
+                      ? "danger"
+                      : "no-data"
+                  }
+                >
+                  {row.status === "online"
+                    ? "Online"
+                    : row.status === "offline"
+                    ? "Offline"
+                    : "Brak danych"}
+                </td>
+
+                <td>{row.ping_ms ?? "-"}</td>
+                <td>{row.blad ?? "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="pagination">
+        <button
+          className="pagination-button"
+          disabled={tablePage === 1}
+          onClick={() => setTablePage((p) => p - 1)}
+        >
+          Previous
+        </button>
+
+        <span>
+          Page {tablePage} of {totalPages || 1}
+        </span>
+
+        <button
+          className="pagination-button"
+          disabled={tablePage === totalPages || totalPages === 0}
+          onClick={() => setTablePage((p) => p + 1)}
+        >
+          Next
+        </button>
+      </div>
+    </>
+  );
+});
 
 function HistoriaStatusow() {
   const { hosting_id, usluga_id } = useParams();
@@ -31,10 +121,37 @@ function HistoriaStatusow() {
         setLoading(false);
       })
       .catch((err) => {
-        console.log("Błąd pobierania danych:", err);
+        console.error("Błąd pobierania danych:", err);
         setLoading(false);
       });
   }, [hosting_id, usluga_id]);
+
+  const filteredHistoria = useMemo(() => {
+    return historia.filter((item) => {
+      const itemDate = new Date(item.data_i_czas);
+      const fromOk = !dateFrom || itemDate >= new Date(dateFrom);
+      const toOk = !dateTo || itemDate <= new Date(`${dateTo}T23:59:59`);
+      return fromOk && toOk;
+    });
+  }, [historia, dateFrom, dateTo]);
+
+  const chartData = useMemo(() => {
+    let lastPing = null;
+    return [...filteredHistoria].reverse().map((item) => {
+      if (item.ping_ms != null) {
+        lastPing = Number(item.ping_ms);
+      }
+
+      return {
+        ...item,
+        statusOnline: item.status === "online" ? 1 : null,
+        statusOffline: item.status === "offline" ? 0 : null,
+        statusBrakDanych:
+          item.status !== "online" && item.status !== "offline" ? 0.5 : null,
+        brak_ping: item.ping_ms == null ? lastPing : null,
+      };
+    });
+  }, [filteredHistoria]);
 
   if (loading) {
     return (
@@ -51,33 +168,6 @@ function HistoriaStatusow() {
     );
   }
 
-  const filteredHistoria = historia.filter((item) => {
-    const itemDate = new Date(item.data_i_czas);
-
-    const fromOk = !dateFrom || itemDate >= new Date(dateFrom);
-    const toOk = !dateTo || itemDate <= new Date(`${dateTo}T23:59:59`);
-
-    return fromOk && toOk;
-  });
-
-  let lastPing = null;
-
-  const chartData = [...filteredHistoria].reverse().map((item) => {
-    if (item.ping_ms != null) {
-      lastPing = Number(item.ping_ms);
-    }
-
-    return {
-      ...item,
-
-      statusOnline: item.status === "online" ? 1 : null,
-      statusOffline: item.status === "offline" ? 0 : null,
-      statusBrakDanych:
-        item.status !== "online" && item.status !== "offline" ? 0.5 : null,
-
-      brak_ping: item.ping_ms == null ? lastPing : null,
-    };
-  });
   return (
     <div className="history-details-container">
       <h2 className="history-details-title">Historia statusów stron</h2>
@@ -259,54 +349,12 @@ function HistoriaStatusow() {
         </ResponsiveContainer>
       </div>
 
-      <h3 className="history-table-title">Historia zmian</h3>
-      <p></p>
-      <h4 className="account-nickname">
-        {filteredHistoria[0]?.nazwa || "Brak danych"}
-      </h4>
-      <br />
-      <div className="history-table-wrapper">
-        <table className="history-table">
-          <thead>
-            <tr>
-              <th>Data i czas</th>
-              <th>Status</th>
-              <th>Ping [ms]</th>
-              <th>Błąd</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filteredHistoria.map((row, index) => (
-              <tr key={index}>
-                <td>
-                  {new Date(row.data_i_czas)
-                    .toLocaleString("pl-PL")
-                    .slice(0, -3)}
-                </td>
-                <td
-                  className={
-                    row.status === "online"
-                      ? "success"
-                      : row.status === "offline"
-                        ? "danger"
-                        : "no-data"
-                  }
-                >
-                  {row.status === "online"
-                    ? "Online"
-                    : row.status === "offline"
-                      ? "Offline"
-                      : "Brak danych"}
-                </td>
-
-                <td>{row.ping_ms ?? "-"}</td>
-                <td>{row.blad ?? "-"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* Paginated history table */}
+      <StatusHistoryTable
+        data={filteredHistoria}
+        rowsPerPage={50}
+        serviceName={filteredHistoria[0]?.nazwa}
+      />
     </div>
   );
 }
