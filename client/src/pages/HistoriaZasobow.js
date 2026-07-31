@@ -89,8 +89,12 @@ export default function HistoriaZasobow() {
   }, [prediction, dateFrom, dateTo]);
 
   let lastDisk = null;
+  const historiaReverse = useMemo(
+  () => [...filteredHistoria].reverse(),
+  [filteredHistoria]
+  );
 
-  const daneDysk =[...filteredHistoria.slice().reverse(),...filteredPrediction].map((item) => {
+  const daneDysk =[...historiaReverse,...filteredPrediction].map((item) => {
     if (item.zuzycie_dysku_mb != null) {
       lastDisk = item.zuzycie_dysku_mb;
     }
@@ -108,7 +112,7 @@ export default function HistoriaZasobow() {
   let lastRam = null;
   let lastProcesses = null;
 
-  const danePozostale = [...filteredHistoria.slice().reverse()].map((item) => {
+  const danePozostale = [...historiaReverse].map((item) => {
     if (item.zuzycie_cpu_procent != null) {
       lastCpu = item.zuzycie_cpu_procent;
     }
