@@ -90,7 +90,7 @@ export default function HistoriaZasobow() {
 
   let lastDisk = null;
 
-  const daneDysk = [filteredHistoria,[...filteredPrediction].reverse()].map((item) => {
+  const daneDysk = [...filteredPrediction,...filteredHistoria].map((item) => {
     if (item.zuzycie_dysku_mb != null) {
       lastDisk = item.zuzycie_dysku_mb;
     }
