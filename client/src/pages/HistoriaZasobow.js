@@ -216,6 +216,7 @@ export default function HistoriaZasobow() {
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 5 }}
+              isAnimationActive={false}
             />
             <Line
               dataKey="brak_dysk"
@@ -232,6 +233,7 @@ export default function HistoriaZasobow() {
               strokeDasharray="5 5"
               dot={false}
               activeDot={{ r: 5 }}
+              isAnimationActive={false}
             />
             {historia[0].typ === "serwer" && (
               <ReferenceLine
@@ -312,6 +314,7 @@ export default function HistoriaZasobow() {
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 5 }}
+              isAnimationActive={false}
             />
             <Line
               dataKey="brak_cpu"
@@ -365,6 +368,7 @@ export default function HistoriaZasobow() {
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 5 }}
+              isAnimationActive={false}
             />
             <Line
               dataKey="brak_ram"
@@ -412,6 +416,7 @@ export default function HistoriaZasobow() {
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 3 }}
+              isAnimationActive={false}
             />
             <Line
               dataKey="brak_procesy"
