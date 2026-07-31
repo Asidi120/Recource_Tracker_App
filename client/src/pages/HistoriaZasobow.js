@@ -132,7 +132,20 @@ export default function HistoriaZasobow() {
       brak_procesy: item.zuzycie_procesow == null ? lastProcesses : null,
     };
   });
+    const limitDysku = historia[0]?.limit_dysku_mb;
 
+  const tabledata = useMemo(() => {
+  return [...filteredHistoria].reverse();
+  }, [filteredHistoria]);
+
+  const totalPages = Math.ceil(tabledata.length / rowsPerPage);
+  useEffect(() => {
+  setTablePage(1);
+}, [dateFrom, dateTo]);
+  const paginatedTableData = useMemo(() => {
+    const start = (tablePage - 1) * rowsPerPage;
+    return tabledata.slice(start, start + rowsPerPage);
+  }, [tabledata, tablePage]);
   if (loading) {
     return (
       <div className="history-details-container">
@@ -140,18 +153,7 @@ export default function HistoriaZasobow() {
       </div>
     );
   }
-  const limitDysku = historia[0]?.limit_dysku_mb;
 
-  const tabledata = useMemo(() => {
-  return [...filteredHistoria].reverse();
-  }, [filteredHistoria]);
-
-  const totalPages = Math.ceil(tabledata.length / rowsPerPage);
-
-  const paginatedTableData = useMemo(() => {
-    const start = (tablePage - 1) * rowsPerPage;
-    return tabledata.slice(start, start + rowsPerPage);
-  }, [tabledata, tablePage]);
   return (
     <div className="history-details-container">
       <h2 className="history-details-title">Historia zużycia zasobów</h2>
@@ -456,7 +458,7 @@ export default function HistoriaZasobow() {
 
     <tbody>
       {paginatedTableData.map((d, i) => (
-        <tr key={i}>
+        <tr key={d.data_i_czas || i}>
           <td>
             {d.data_i_czas ? d.data_i_czas.slice(0, -3) : "Brak danych"}
           </td>
