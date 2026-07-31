@@ -160,6 +160,7 @@ function HistoriaStatusow() {
               strokeWidth={2}
               activeDot={{ r: 4 }}
               dot={false}
+              isAnimationActive={false}
             />
             <Line
               dataKey="brak_ping"
@@ -229,6 +230,7 @@ function HistoriaStatusow() {
               dot={{ r: 2, fill: "#22c55e" }}
               activeDot={{ r: 4 }}
               connectNulls={false}
+              isAnimationActive={false}
             />
 
             <Line
@@ -239,6 +241,7 @@ function HistoriaStatusow() {
               dot={{ r: 2, fill: "#ef4444" }}
               activeDot={{ r: 4 }}
               connectNulls={false}
+              isAnimationActive={false}
             />
 
             <Line
@@ -250,6 +253,7 @@ function HistoriaStatusow() {
               dot={{ r: 2, fill: "#9ca3af" }}
               activeDot={{ r: 4 }}
               connectNulls={false}
+              isAnimationActive={false}
             />
           </LineChart>
         </ResponsiveContainer>

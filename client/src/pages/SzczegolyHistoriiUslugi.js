@@ -189,6 +189,7 @@ function SzczegolyHistoriiUslugi() {
               connectNulls={true}
               dot={false}
               activeDot={{ r: 5 }}
+              isAnimationActive={false}
             />
             <Line
               dataKey="brak_danych"
@@ -196,6 +197,7 @@ function SzczegolyHistoriiUslugi() {
               dot={{ r: 3, fill: "red" }}
               activeDot={{ r: 5 }}
               strokeOpacity={0}
+              isAnimationActive={false}
             />
 
             <Line
@@ -206,6 +208,7 @@ function SzczegolyHistoriiUslugi() {
               strokeDasharray="5 5"
               dot={false}
               activeDot={{ r: 5 }}
+              isAnimationActive={false}
             />
             {historia[0].typ === "serwer" && (
               <ReferenceLine

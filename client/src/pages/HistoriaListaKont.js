@@ -260,6 +260,7 @@ function HistoriaListaKont() {
                             stroke="#4f46e5"
                             dot={false}
                             connectNulls={true}
+                            isAnimationActive={false}
                           />
 
                           <Line
@@ -268,6 +269,7 @@ function HistoriaListaKont() {
                             dot={{ r: 3, fill: "red" }}
                             activeDot={{ r: 5 }}
                             strokeOpacity={0}
+                            isAnimationActive={false}
                           />
                         
                           {service.typ === "serwer" && (
