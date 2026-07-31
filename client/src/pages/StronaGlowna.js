@@ -37,20 +37,21 @@ function StronaGlowna() {
       const baza = await bazaResponse.json();
 
 
-      const today = new Date().toISOString().slice(0, 10);
-      const lastLogDate = localStorage.getItem("dbInfoLogDate");
+      const logged = sessionStorage.getItem("dbInfoLogged");
 
-      if (lastLogDate !== today) {
+      if (!logged) {
         console.log("===== INFORMACJE O BAZIE =====");
         console.log("Aktualny rozmiar:", baza.rozmiar_mb, "MB");
-        console.log("Data pomiaru:", baza.data_i_czas.slice(0,-3));
+        console.log("Data pomiaru:", baza.data_i_czas.slice(0, -3));
         console.log("Średni wzrost:", Number(baza.sredni_wzrost).toFixed(2), "MB/dzień");
-        console.log("Przewidywana data zapełnienia bazy:", new Date(baza.przewidywana_data).toLocaleString("pl-PL").slice(0, -3));
+        console.log(
+          "Przewidywana data zapełnienia bazy:",
+          new Date(baza.przewidywana_data).toLocaleString("pl-PL").slice(0, -3)
+        );
         console.log("==============================");
 
-        localStorage.setItem("dbInfoLogDate", today);
+        sessionStorage.setItem("dbInfoLogged", "true");
       }
-
 
     } catch(err) {
       console.error("Błąd API:", err);
