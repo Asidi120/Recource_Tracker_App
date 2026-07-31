@@ -22,7 +22,6 @@ export default function HistoriaZasobow() {
   const [prediction, setPrediction] = useState([]);
   const [averageGrowth30Days, setAverageGrowth30Days] = useState(null);
   const [predictedFullDate, setPredictedFullDate] = useState(null);
-  console.count("HistoriaZasobow render");
   useEffect(() => {
     if (!id) return;
 
