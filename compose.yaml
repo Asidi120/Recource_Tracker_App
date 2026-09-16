@@ -26,6 +26,11 @@ services:
         condition: service_healthy
     networks:
       - appnet
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
   client:
     build:
       context: ./client
@@ -38,6 +43,11 @@ services:
       - appnet  
     stdin_open: true # Ważne dla Reacta w Dockerze
     tty: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
   db:
     image: mysql:8
     container_name: mysql_local
@@ -53,6 +63,11 @@ services:
       - ./init:/docker-entrypoint-initdb.d
     networks:
       - appnet
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -73,6 +88,11 @@ services:
       - server
     networks:
       - appnet
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 volumes:
   db_data:
 
