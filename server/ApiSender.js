@@ -135,74 +135,82 @@ export function StartApi(app) {
 app.get("/api/historia_uslug", async (req, res) => {
   let db;
   try {
+    console.time("Całkowity czas endpointu (Backend)");
     db = await DbConnection();
+
+    // 1. Szybkie pobranie danych o usługach i limitach (korzysta z Twoich indeksów)
+    console.time("1. Zapytanie SQL: Metadane usług");
+    const [metadata] = await db.query(`
+      SELECT
+        kh.id AS hosting_id,
+        kh.login,
+        u.id AS usluga_id,
+        u.nazwa,
+        u.typ,
+        (SELECT GROUP_CONCAT(jp.nazwa SEPARATOR ', ')
+         FROM USLUGI_TECHNOLOGIE ut
+         JOIN TECHNOLOGIE jp ON jp.id = ut.technologia_id
+         WHERE ut.usluga_id = u.id) AS technologie,
+        (SELECT limit_dysku_mb 
+         FROM ZUZYCIE_ZASOBOW 
+         WHERE hosting_id = kh.id 
+         ORDER BY data_i_czas DESC LIMIT 1) AS limit_dysku_mb
+      FROM KONTO_HOSTINGOWE kh
+      JOIN USLUGI u ON u.hosting_id = kh.id;
+    `);
+    console.timeEnd("1. Zapytanie SQL: Metadane usług");
+
+    // 2. Szybkie pobranie historii (dzięki idx_rozmiar_uslugi_data baza wczyta to od ręki)
+    console.time("2. Zapytanie SQL: Historia (ostatnie 60 dni)");
+    const [historia] = await db.query(`
+      SELECT usluga_id, data_i_czas, rozmiar_mb
+      FROM ROZMIAR_USLUGI
+      WHERE data_i_czas >= DATE_SUB(NOW(), INTERVAL 60 DAY)
+      ORDER BY usluga_id, data_i_czas DESC;
+    `);
+    console.timeEnd("2. Zapytanie SQL: Historia (ostatnie 60 dni)");
+
+    // 3. Połączenie danych w pamięci RAM serwera (zamiast powolnych JOIN-ów w SQL)
+    console.time("3. Grupowanie i formatowanie (Node.js)");
     
-const [rows] = await db.query(`
-  SELECT
-    kh.id AS hosting_id,
-    kh.login,
-    u.id AS usluga_id,
-    u.nazwa,
-    u.typ,
-    tech.technologie,
-    aktualny.rozmiar_mb AS rozmiar_mb,
-    ru.data_i_czas,
-    ru.rozmiar_mb,
-    z.limit_dysku_mb
-  FROM KONTO_HOSTINGOWE kh
-  
-  JOIN USLUGI u ON u.hosting_id = kh.id
-  
-  -- 1. Aktualny limit dysku (najnowsza data)
-  LEFT JOIN (
-    SELECT hosting_id, MAX(data_i_czas) AS max_data
-    FROM ZUZYCIE_ZASOBOW
-    GROUP BY hosting_id
-  ) z_max ON z_max.hosting_id = kh.id
-  LEFT JOIN ZUZYCIE_ZASOBOW z 
-    ON z.hosting_id = z_max.hosting_id AND z.data_i_czas = z_max.max_data
-
-  -- 2. Zgrupowane technologie
-  LEFT JOIN (
-    SELECT ut.usluga_id, GROUP_CONCAT(DISTINCT jp.nazwa ORDER BY jp.nazwa SEPARATOR ', ') AS technologie
-    FROM USLUGI_TECHNOLOGIE ut
-    JOIN TECHNOLOGIE jp ON jp.id = ut.technologia_id
-    GROUP BY ut.usluga_id
-  ) tech ON tech.usluga_id = u.id
-
-  -- 3. Aktualny rozmiar usługi (najnowsza data)
-  LEFT JOIN (
-    SELECT usluga_id, MAX(data_i_czas) AS max_data
-    FROM ROZMIAR_USLUGI
-    GROUP BY usluga_id
-  ) ru_max ON ru_max.usluga_id = u.id
-  LEFT JOIN ROZMIAR_USLUGI aktualny 
-    ON aktualny.usluga_id = ru_max.usluga_id AND aktualny.data_i_czas = ru_max.max_data
-
-  -- 4. Historia usługi (pobieramy np. z ostatnich 60 dni zamiast liczyć 200 rekordów)
-  LEFT JOIN ROZMIAR_USLUGI ru 
-    ON ru.usluga_id = u.id 
-    AND ru.data_i_czas >= DATE_SUB(NOW(), INTERVAL 60 DAY)
-
-  ORDER BY
-    kh.login,
-    u.nazwa,
-    ru.data_i_czas DESC;
-`);
+    // Tworzymy mapę dla błyskawicznego dostępu O(1)
+    const metadataMap = {};
+    for (const meta of metadata) {
+      metadataMap[meta.usluga_id] = meta;
+    }
 
     const grouped = {};
-    for (const row of rows) {
-      if (!grouped[row.usluga_id]) {
-        grouped[row.usluga_id] = [];
+    for (const wpis of historia) {
+      if (!grouped[wpis.usluga_id]) {
+        grouped[wpis.usluga_id] = [];
       }
-      grouped[row.usluga_id].push(row);
+      
+      const meta = metadataMap[wpis.usluga_id];
+      if (meta) {
+        // Składamy pojedynczy rekord do formatu, którego oczekuje React i fillMissingData
+        grouped[wpis.usluga_id].push({
+          hosting_id: meta.hosting_id,
+          login: meta.login,
+          usluga_id: wpis.usluga_id,
+          nazwa: meta.nazwa,
+          typ: meta.typ,
+          technologie: meta.technologie,
+          limit_dysku_mb: meta.limit_dysku_mb,
+          data_i_czas: wpis.data_i_czas,
+          rozmiar_mb: wpis.rozmiar_mb
+        });
+      }
     }
 
     let result = [];
     for (const usluga_id in grouped) {
+      // Wywołanie Twojej funkcji uzupełniającej braki
       const filled = fillMissingData(grouped[usluga_id]);
-      result.push(...filled.slice(0, 200));
+      result.push(...filled.slice(0, 200)); 
     }
+    
+    console.timeEnd("3. Grupowanie i formatowanie (Node.js)");
+    console.timeEnd("Całkowity czas endpointu (Backend)");
 
     res.json(result);
   } catch (err) {
