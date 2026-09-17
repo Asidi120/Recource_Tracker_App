@@ -132,114 +132,92 @@ export function StartApi(app) {
     }
   });
 
-  app.get("/api/historia_uslug", async (req, res) => {
-    let db;
-    try {
-      db = await DbConnection();
-      const [rows] = await db.query(`
-    SELECT
+app.get("/api/historia_uslug", async (req, res) => {
+  let db;
+  try {
+    db = await DbConnection();
+    
+    const [rows] = await db.query(`
+      SELECT
         kh.id AS hosting_id,
         kh.login,
         u.id AS usluga_id,
         u.nazwa,
         u.typ,
-        GROUP_CONCAT(DISTINCT jp.nazwa ORDER BY jp.nazwa SEPARATOR ', ') AS technologie,
+        tech.technologie,
         aktualny.rozmiar_mb AS rozmiar_mb,
         ru.data_i_czas,
         ru.rozmiar_mb,
         z.limit_dysku_mb
-
-    FROM KONTO_HOSTINGOWE kh
-
-    JOIN USLUGI u
-        ON u.hosting_id = kh.id
-    LEFT JOIN (
-    SELECT z1.hosting_id, z1.limit_dysku_mb
-    FROM ZUZYCIE_ZASOBOW z1
-    JOIN (
-        SELECT hosting_id, MAX(data_i_czas) AS max_data
-        FROM ZUZYCIE_ZASOBOW
-        GROUP BY hosting_id
-    ) z2
-    ON z1.hosting_id = z2.hosting_id
-    AND z1.data_i_czas = z2.max_data
-) z
-ON z.hosting_id = kh.id
-
-    LEFT JOIN USLUGI_TECHNOLOGIE ut
-ON ut.usluga_id = u.id
-
-LEFT JOIN TECHNOLOGIE jp
-ON jp.id = ut.technologia_id
-
-    LEFT JOIN (
-        SELECT r1.usluga_id, r1.rozmiar_mb
-        FROM ROZMIAR_USLUGI r1
-        JOIN (
-            SELECT usluga_id, MAX(data_i_czas) AS max_data
-            FROM ROZMIAR_USLUGI
-            GROUP BY usluga_id
-        ) r2
-        ON r1.usluga_id = r2.usluga_id
-        AND r1.data_i_czas = r2.max_data
-    ) aktualny
-        ON aktualny.usluga_id = u.id
-
-    LEFT JOIN (
-        SELECT *
+      FROM KONTO_HOSTINGOWE kh
+      
+      JOIN USLUGI u ON u.hosting_id = kh.id
+      
+      LEFT JOIN (
+        SELECT hosting_id, limit_dysku_mb
         FROM (
-            SELECT
-                ru.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY ru.usluga_id
-                    ORDER BY ru.data_i_czas DESC
-                ) AS rn
-            FROM ROZMIAR_USLUGI ru
+          SELECT hosting_id, limit_dysku_mb,
+                 ROW_NUMBER() OVER(PARTITION BY hosting_id ORDER BY data_i_czas DESC) as rn
+          FROM ZUZYCIE_ZASOBOW
+        ) tmp
+        WHERE rn = 1
+      ) z ON z.hosting_id = kh.id
+      
+      LEFT JOIN (
+        SELECT ut.usluga_id, GROUP_CONCAT(DISTINCT jp.nazwa ORDER BY jp.nazwa SEPARATOR ', ') AS technologie
+        FROM USLUGI_TECHNOLOGIE ut
+        JOIN TECHNOLOGIE jp ON jp.id = ut.technologia_id
+        GROUP BY ut.usluga_id
+      ) tech ON tech.usluga_id = u.id
+      
+      LEFT JOIN (
+        SELECT usluga_id, rozmiar_mb
+        FROM (
+          SELECT usluga_id, rozmiar_mb,
+                 ROW_NUMBER() OVER(PARTITION BY usluga_id ORDER BY data_i_czas DESC) as rn
+          FROM ROZMIAR_USLUGI
+        ) tmp
+        WHERE rn = 1
+      ) aktualny ON aktualny.usluga_id = u.id
+      
+      LEFT JOIN (
+        SELECT usluga_id, data_i_czas, rozmiar_mb
+        FROM (
+          SELECT usluga_id, data_i_czas, rozmiar_mb,
+                 ROW_NUMBER() OVER (PARTITION BY usluga_id ORDER BY data_i_czas DESC) AS rn
+          FROM ROZMIAR_USLUGI
         ) x
         WHERE rn <= 200
-    ) ru
-        ON ru.usluga_id = u.id
-    GROUP BY
-    kh.id,
-    kh.login,
-    u.id,
-    u.nazwa,
-    u.typ,
-    aktualny.rozmiar_mb,
-    ru.data_i_czas,
-    ru.rozmiar_mb
-    ORDER BY
+      ) ru ON ru.usluga_id = u.id
+      
+      ORDER BY
         kh.login,
         u.nazwa,
-        ru.data_i_czas desc;
-      `);
-  const history = rows;
-  const grouped = {};
-  for (const row of history) {
-    if (!grouped[row.usluga_id]) {
-      grouped[row.usluga_id] = [];
+        ru.data_i_czas DESC;
+    `);
+
+    const grouped = {};
+    for (const row of rows) {
+      if (!grouped[row.usluga_id]) {
+        grouped[row.usluga_id] = [];
+      }
+      grouped[row.usluga_id].push(row);
     }
 
-    grouped[row.usluga_id].push(row);
-  }
-
-
-  let result = [];
-
-  for (const usluga_id in grouped) {
-    const filled = fillMissingData(grouped[usluga_id]);
-
-    result.push(...filled.slice(0,200));
-  }
-
-  res.json(result);
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Błąd serwera" });
-    } finally {
-      if (db) await db.end();
+    let result = [];
+    for (const usluga_id in grouped) {
+      const filled = fillMissingData(grouped[usluga_id]);
+      result.push(...filled.slice(0, 200));
     }
-  });
+
+    res.json(result);
+  } catch (err) {
+    console.error("Database query failed:", err);
+    res.status(500).json({ error: "Błąd serwera" });
+  } finally {
+    if (db) await db.end();
+  }
+});
 
   app.get("/api/historia_uslug/:id", async (req, res) => {
     let db;

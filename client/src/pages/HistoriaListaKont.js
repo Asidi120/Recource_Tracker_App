@@ -136,6 +136,7 @@ function HistoriaListaKont() {
     // Ten useEffect wykona się od razu po tym, jak React wrzuci zmiany na ekran
     console.timeEnd("4. Renderowanie interfejsu i wykresów");
   });
+  
 
   return (
     <div className="container">
