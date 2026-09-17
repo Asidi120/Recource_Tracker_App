@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import "../styles/Style.css";
 import { CustomTick } from "../components/CustomTick";
 import {
@@ -56,7 +56,30 @@ function HistoriaListaKont() {
 
     return Object.values(grouped).map((hosting) => ({
       ...hosting,
-      uslugi: Object.values(hosting.uslugi),
+      uslugi: Object.values(hosting.uslugi).map((service) => {
+        const reversed = [...service.historia].reverse();
+        
+        let firstKnown = null;
+        for (let i = 0; i < reversed.length; i++) {
+          if (reversed[i].rozmiar !== null) {
+            firstKnown = reversed[i].rozmiar;
+            break; 
+          }
+        }
+
+        let lastSize = firstKnown;
+        const chartData = reversed.map((item) => {
+          if (item.rozmiar !== null) {
+            lastSize = item.rozmiar;
+          }
+          return {
+            ...item,
+            brak_danych: item.rozmiar === null ? lastSize : null,
+          };
+        });
+
+        return { ...service, chartData };
+      }),
     }));
   };
 
@@ -76,11 +99,9 @@ function HistoriaListaKont() {
 
   const expandAll = () => {
     const all = {};
-
     accounts.forEach((acc) => {
       all[acc.hosting_id] = true;
     });
-
     setExpanded(all);
   };
 
@@ -88,31 +109,36 @@ function HistoriaListaKont() {
     setExpanded({});
   };
 
-  const uniqueTypes = [
-    ...new Set(
-      accounts
-        .flatMap((account) => account.uslugi)
-        .map((service) => service.typ)
-        .filter(Boolean),
-    ),
-  ];
-
-  const filteredAccounts = accounts
-    .map((account) => ({
-      ...account,
-      uslugi: account.uslugi.filter(
-        (service) =>
-          (!filteredTyp || service.typ === filteredTyp) &&
-          (!filteredNazwa ||
-            service.nazwa.toLowerCase().includes(filteredNazwa.toLowerCase())),
+  const uniqueTypes = useMemo(() => {
+    return [
+      ...new Set(
+        accounts
+          .flatMap((account) => account.uslugi)
+          .map((service) => service.typ)
+          .filter(Boolean)
       ),
-    }))
-    .filter(
-      (account) =>
-        (!filteredHostingID ||
-          Number(account.hosting_id) === Number(filteredHostingID)) &&
-        account.uslugi.length > 0,
-    );
+    ];
+  }, [accounts]);
+
+  const filteredAccounts = useMemo(() => {
+    return accounts
+      .map((account) => ({
+        ...account,
+        uslugi: account.uslugi.filter(
+          (service) =>
+            (!filteredTyp || service.typ === filteredTyp) &&
+            (!filteredNazwa ||
+              service.nazwa.toLowerCase().includes(filteredNazwa.toLowerCase()))
+        ),
+      }))
+      .filter(
+        (account) =>
+          (!filteredHostingID ||
+            Number(account.hosting_id) === Number(filteredHostingID)) &&
+          account.uslugi.length > 0
+      );
+  }, [accounts, filteredTyp, filteredNazwa, filteredHostingID]);
+
   return (
     <div className="container">
       <h2>Historia</h2>
@@ -128,7 +154,6 @@ function HistoriaListaKont() {
           onChange={(e) => setFilteredHostingID(e.target.value)}
         >
           <option value="">Wszystkie hostingi</option>
-
           {accounts.map((hosting) => (
             <option key={hosting.hosting_id} value={hosting.hosting_id}>
               {hosting.login}
@@ -141,7 +166,6 @@ function HistoriaListaKont() {
           onChange={(e) => setFilteredTyp(e.target.value)}
         >
           <option value="">Wszystkie typy</option>
-
           {uniqueTypes.map((type) => (
             <option key={type} value={type}>
               {type}
@@ -170,141 +194,114 @@ function HistoriaListaKont() {
 
           {expanded[account.hosting_id] && (
             <div className="account-body">
-              {account.uslugi.map((service) => {
-                const reversed = [...service.historia].reverse();
-
-                const firstKnown =
-                  reversed.find((item) => item.rozmiar !== null)?.rozmiar ??
-                  null;
-
-                let lastSize = firstKnown;
-
-                const chartData = reversed.map((item) => {
-                  if (item.rozmiar !== null) {
-                    lastSize = item.rozmiar;
-                  }
-                  
-
-                  return {
-                    ...item,
-                    brak_danych: item.rozmiar === null ? lastSize : null,
-                  };
-                  
-                });
-                return (
-                  <div key={service.usluga_id} className="service-card">
-                    <div className="service-header">
-                      <div>
-                        <strong>{service.nazwa}</strong>
-                        <div>{service.typ}</div>
-                      </div>
-
-                      <div>
-                        <strong>
-                          {Number(service.rozmiar_mb).toFixed(2).slice(-2) ===
-                          "00"
-                            ? Number(service.rozmiar_mb).toFixed(0)
-                            : Number(service.rozmiar_mb).toFixed(2)}{" "}
-                          MB
-                        </strong>
-                      </div>
+              {account.uslugi.map((service) => (
+                <div key={service.usluga_id} className="service-card">
+                  <div className="service-header">
+                    <div>
+                      <strong>{service.nazwa}</strong>
+                      <div>{service.typ}</div>
                     </div>
 
-                    <div className="chart-container">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart
-                          data={chartData}
-                          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" />
-
-                          <XAxis
-                            dataKey="data"
-                            tick={<CustomTick />}
-                            height={65}
-                            interval="preserveStartEnd"
-                            padding={{ left: 25, right: 25 }}
-                          />
-
-                          <YAxis
-                            domain={[0, (max) => Math.ceil(max * 1.05)]}
-                            tickCount={4}
-                            unit=" MB"
-                          />
-
-                          <Tooltip
-                            labelFormatter={(value) =>
-                              new Date(value)
-                                .toLocaleString("pl-PL")
-                                .slice(0, -3)
-                            }
-                            formatter={(value, name) => {
-                              if (name === "brak_danych") {
-                                return ["Brak danych", "Rozmiar"];
-                              }
-
-                              return [
-                                `${
-                                  Number(value).toFixed(2).slice(-2) === "00"
-                                    ? Number(value).toFixed(0)
-                                    : Number(value).toFixed(2)
-                                } MB`,
-                                "Rozmiar",
-                              ];
-                            }}
-                          />
-
-                          <Line
-                            type="monotone"
-                            dataKey="rozmiar"
-                            stroke="#4f46e5"
-                            dot={false}
-                            connectNulls={true}
-                            isAnimationActive={false}
-                          />
-
-                          <Line
-                            dataKey="brak_danych"
-                            stroke="red"
-                            dot={{ r: 3, fill: "red" }}
-                            activeDot={{ r: 5 }}
-                            strokeOpacity={0}
-                            isAnimationActive={false}
-                          />
-                        
-                          {service.typ === "serwer" && (
-                            
-                              <ReferenceLine
-                                y={service.limit_dysku_mb * 0.9}
-                                stroke="orange"
-                                strokeDasharray="5 5"
-                                label="90%"
-                              />
-                          )}
-                          {service.typ === "serwer" &&(
-                              <ReferenceLine
-                                y={service.limit_dysku_mb}
-                                stroke="red"
-                                strokeDasharray="5 5"
-                                label="Limit"
-                              />
-                          )}
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-
-                    <div className="service-actions">
-                      <button
-                        onClick={() =>
-                          navigate(`/historia/${service.usluga_id}`)
-                        }
-                      >
-                        Zobacz szczegóły
-                      </button>
+                    <div>
+                      <strong>
+                        {Number(service.rozmiar_mb).toFixed(2).slice(-2) === "00"
+                          ? Number(service.rozmiar_mb).toFixed(0)
+                          : Number(service.rozmiar_mb).toFixed(2)}{" "}
+                        MB
+                      </strong>
                     </div>
                   </div>
-                );
-              })}
+
+                  <div className="chart-container">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={service.chartData}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+
+                        <XAxis
+                          dataKey="data"
+                          tick={<CustomTick />}
+                          height={65}
+                          interval="preserveStartEnd"
+                          padding={{ left: 25, right: 25 }}
+                        />
+
+                        <YAxis
+                          domain={[0, (max) => Math.ceil(max * 1.05)]}
+                          tickCount={4}
+                          unit=" MB"
+                        />
+
+                        <Tooltip
+                          labelFormatter={(value) =>
+                            new Date(value)
+                              .toLocaleString("pl-PL")
+                              .slice(0, -3)
+                          }
+                          formatter={(value, name) => {
+                            if (name === "brak_danych") {
+                              return ["Brak danych", "Rozmiar"];
+                            }
+                            return [
+                              `${
+                                Number(value).toFixed(2).slice(-2) === "00"
+                                  ? Number(value).toFixed(0)
+                                  : Number(value).toFixed(2)
+                              } MB`,
+                              "Rozmiar",
+                            ];
+                          }}
+                        />
+
+                        <Line
+                          type="monotone"
+                          dataKey="rozmiar"
+                          stroke="#4f46e5"
+                          dot={false}
+                          connectNulls={true}
+                          isAnimationActive={false}
+                        />
+
+                        <Line
+                          dataKey="brak_danych"
+                          stroke="red"
+                          dot={{ r: 1.5, fill: "red" }} // Made dots smaller
+                          activeDot={{ r: 3 }}
+                          strokeOpacity={0}
+                          isAnimationActive={false}
+                        />
+
+                        {service.typ === "serwer" && (
+                          <>
+                            <ReferenceLine
+                              y={service.limit_dysku_mb * 0.9}
+                              stroke="orange"
+                              strokeDasharray="5 5"
+                              label="90%"
+                            />
+                            <ReferenceLine
+                              y={service.limit_dysku_mb}
+                              stroke="red"
+                              strokeDasharray="5 5"
+                              label="Limit"
+                            />
+                          </>
+                        )}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="service-actions">
+                    <button
+                      onClick={() => navigate(`/historia/${service.usluga_id}`)}
+                    >
+                      Zobacz szczegóły
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
