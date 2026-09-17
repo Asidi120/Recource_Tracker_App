@@ -138,45 +138,72 @@ app.get("/api/historia_uslug", async (req, res) => {
     console.time("Całkowity czas endpointu (Backend)");
     db = await DbConnection();
 
-    // 1. Szybkie pobranie danych o usługach i limitach (korzysta z Twoich indeksów)
-    console.time("1. Zapytanie SQL: Metadane usług");
-    const [metadata] = await db.query(`
-      SELECT
-        kh.id AS hosting_id,
-        kh.login,
-        u.id AS usluga_id,
-        u.nazwa,
-        u.typ,
-        (SELECT GROUP_CONCAT(jp.nazwa SEPARATOR ', ')
-         FROM USLUGI_TECHNOLOGIE ut
-         JOIN TECHNOLOGIE jp ON jp.id = ut.technologia_id
-         WHERE ut.usluga_id = u.id) AS technologie,
-        (SELECT limit_dysku_mb 
-         FROM ZUZYCIE_ZASOBOW 
-         WHERE hosting_id = kh.id 
-         ORDER BY data_i_czas DESC LIMIT 1) AS limit_dysku_mb
+    // 1A. Szybkie pobranie kont i usług
+    console.time("1A. Zapytanie SQL: Konta i Usługi");
+    const [uslugi] = await db.query(`
+      SELECT kh.id AS hosting_id, kh.login, u.id AS usluga_id, u.nazwa, u.typ
       FROM KONTO_HOSTINGOWE kh
       JOIN USLUGI u ON u.hosting_id = kh.id;
     `);
-    console.timeEnd("1. Zapytanie SQL: Metadane usług");
+    console.timeEnd("1A. Zapytanie SQL: Konta i Usługi");
 
-    // 2. Szybkie pobranie historii (dzięki idx_rozmiar_uslugi_data baza wczyta to od ręki)
-    console.time("2. Zapytanie SQL: Historia (ostatnie 3 Godziny)");
+    // 1B. Technologie (wykonywane raz dla wszystkich, bez podzapytań)
+    console.time("1B. Zapytanie SQL: Technologie");
+    const [techs] = await db.query(`
+      SELECT ut.usluga_id, GROUP_CONCAT(jp.nazwa SEPARATOR ', ') AS technologie
+      FROM USLUGI_TECHNOLOGIE ut
+      JOIN TECHNOLOGIE jp ON jp.id = ut.technologia_id
+      GROUP BY ut.usluga_id;
+    `);
+    console.timeEnd("1B. Zapytanie SQL: Technologie");
+
+    // 1C. Najnowsze limity dysku (dzięki indeksowi idx_zasoby_data wykona się błyskawicznie)
+    console.time("1C. Zapytanie SQL: Limity");
+    const [limity] = await db.query(`
+      SELECT z.hosting_id, z.limit_dysku_mb
+      FROM ZUZYCIE_ZASOBOW z
+      JOIN (
+        SELECT hosting_id, MAX(data_i_czas) AS max_data
+        FROM ZUZYCIE_ZASOBOW
+        GROUP BY hosting_id
+      ) z_max ON z.hosting_id = z_max.hosting_id AND z.data_i_czas = z_max.max_data;
+    `);
+    console.timeEnd("1C. Zapytanie SQL: Limity");
+
+    // 2. Historia z ostatnich 4 godzin
+    console.time("2. Zapytanie SQL: Historia (4 godziny)");
     const [historia] = await db.query(`
       SELECT usluga_id, data_i_czas, rozmiar_mb
       FROM ROZMIAR_USLUGI
-      WHERE data_i_czas >= DATE_SUB(NOW(), INTERVAL 3 HOUR)
+      WHERE data_i_czas >= DATE_SUB(NOW(), INTERVAL 4 HOUR)
       ORDER BY usluga_id, data_i_czas DESC;
     `);
-    console.timeEnd("2. Zapytanie SQL: Historia (ostatnie 3 Godziny)");
+    console.timeEnd("2. Zapytanie SQL: Historia (4 godziny)");
 
-    // 3. Połączenie danych w pamięci RAM serwera (zamiast powolnych JOIN-ów w SQL)
     console.time("3. Grupowanie i formatowanie (Node.js)");
     
-    // Tworzymy mapę dla błyskawicznego dostępu O(1)
+    // Błyskawiczne mapowanie (O(1)) zamiast JOIN-ów SQL
+    const techsMap = {};
+    for (const t of techs) {
+      techsMap[t.usluga_id] = t.technologie;
+    }
+
+    const limityMap = {};
+    for (const l of limity) {
+      limityMap[l.hosting_id] = l.limit_dysku_mb;
+    }
+
     const metadataMap = {};
-    for (const meta of metadata) {
-      metadataMap[meta.usluga_id] = meta;
+    for (const u of uslugi) {
+      metadataMap[u.usluga_id] = {
+        hosting_id: u.hosting_id,
+        login: u.login,
+        usluga_id: u.usluga_id,
+        nazwa: u.nazwa,
+        typ: u.typ,
+        technologie: techsMap[u.usluga_id] || null,
+        limit_dysku_mb: limityMap[u.hosting_id] || null
+      };
     }
 
     const grouped = {};
@@ -187,7 +214,6 @@ app.get("/api/historia_uslug", async (req, res) => {
       
       const meta = metadataMap[wpis.usluga_id];
       if (meta) {
-        // Składamy pojedynczy rekord do formatu, którego oczekuje React i fillMissingData
         grouped[wpis.usluga_id].push({
           hosting_id: meta.hosting_id,
           login: meta.login,
@@ -201,6 +227,24 @@ app.get("/api/historia_uslug", async (req, res) => {
         });
       }
     }
+
+    let result = [];
+    for (const usluga_id in grouped) {
+      const filled = fillMissingData(grouped[usluga_id]);
+      result.push(...filled.slice(0, 200)); 
+    }
+    
+    console.timeEnd("3. Grupowanie i formatowanie (Node.js)");
+    console.timeEnd("Całkowity czas endpointu (Backend)");
+
+    res.json(result);
+  } catch (err) {
+    console.error("Database query failed:", err);
+    res.status(500).json({ error: "Błąd serwera" });
+  } finally {
+    if (db) await db.end();
+  }
+});
 
     let result = [];
     for (const usluga_id in grouped) {
