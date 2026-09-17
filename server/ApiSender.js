@@ -246,25 +246,6 @@ app.get("/api/historia_uslug", async (req, res) => {
   }
 });
 
-    let result = [];
-    for (const usluga_id in grouped) {
-      // Wywołanie Twojej funkcji uzupełniającej braki
-      const filled = fillMissingData(grouped[usluga_id]);
-      result.push(...filled.slice(0, 200)); 
-    }
-    
-    console.timeEnd("3. Grupowanie i formatowanie (Node.js)");
-    console.timeEnd("Całkowity czas endpointu (Backend)");
-
-    res.json(result);
-  } catch (err) {
-    console.error("Database query failed:", err);
-    res.status(500).json({ error: "Błąd serwera" });
-  } finally {
-    if (db) await db.end();
-  }
-});
-
   app.get("/api/historia_uslug/:id", async (req, res) => {
     let db;
 
