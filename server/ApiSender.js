@@ -137,64 +137,58 @@ app.get("/api/historia_uslug", async (req, res) => {
   try {
     db = await DbConnection();
     
-    const [rows] = await db.query(`
-      SELECT
-        kh.id AS hosting_id,
-        kh.login,
-        u.id AS usluga_id,
-        u.nazwa,
-        u.typ,
-        tech.technologie,
-        aktualny.rozmiar_mb AS rozmiar_mb,
-        ru.data_i_czas,
-        ru.rozmiar_mb,
-        z.limit_dysku_mb
-      FROM KONTO_HOSTINGOWE kh
-      
-      JOIN USLUGI u ON u.hosting_id = kh.id
-      
-      LEFT JOIN (
-        SELECT hosting_id, limit_dysku_mb
-        FROM (
-          SELECT hosting_id, limit_dysku_mb,
-                 ROW_NUMBER() OVER(PARTITION BY hosting_id ORDER BY data_i_czas DESC) as rn
-          FROM ZUZYCIE_ZASOBOW
-        ) tmp
-        WHERE rn = 1
-      ) z ON z.hosting_id = kh.id
-      
-      LEFT JOIN (
-        SELECT ut.usluga_id, GROUP_CONCAT(DISTINCT jp.nazwa ORDER BY jp.nazwa SEPARATOR ', ') AS technologie
-        FROM USLUGI_TECHNOLOGIE ut
-        JOIN TECHNOLOGIE jp ON jp.id = ut.technologia_id
-        GROUP BY ut.usluga_id
-      ) tech ON tech.usluga_id = u.id
-      
-      LEFT JOIN (
-        SELECT usluga_id, rozmiar_mb
-        FROM (
-          SELECT usluga_id, rozmiar_mb,
-                 ROW_NUMBER() OVER(PARTITION BY usluga_id ORDER BY data_i_czas DESC) as rn
-          FROM ROZMIAR_USLUGI
-        ) tmp
-        WHERE rn = 1
-      ) aktualny ON aktualny.usluga_id = u.id
-      
-      LEFT JOIN (
-        SELECT usluga_id, data_i_czas, rozmiar_mb
-        FROM (
-          SELECT usluga_id, data_i_czas, rozmiar_mb,
-                 ROW_NUMBER() OVER (PARTITION BY usluga_id ORDER BY data_i_czas DESC) AS rn
-          FROM ROZMIAR_USLUGI
-        ) x
-        WHERE rn <= 200
-      ) ru ON ru.usluga_id = u.id
-      
-      ORDER BY
-        kh.login,
-        u.nazwa,
-        ru.data_i_czas DESC;
-    `);
+const [rows] = await db.query(`
+  SELECT
+    kh.id AS hosting_id,
+    kh.login,
+    u.id AS usluga_id,
+    u.nazwa,
+    u.typ,
+    tech.technologie,
+    aktualny.rozmiar_mb AS rozmiar_mb,
+    ru.data_i_czas,
+    ru.rozmiar_mb,
+    z.limit_dysku_mb
+  FROM KONTO_HOSTINGOWE kh
+  
+  JOIN USLUGI u ON u.hosting_id = kh.id
+  
+  -- 1. Aktualny limit dysku (najnowsza data)
+  LEFT JOIN (
+    SELECT hosting_id, MAX(data_i_czas) AS max_data
+    FROM ZUZYCIE_ZASOBOW
+    GROUP BY hosting_id
+  ) z_max ON z_max.hosting_id = kh.id
+  LEFT JOIN ZUZYCIE_ZASOBOW z 
+    ON z.hosting_id = z_max.hosting_id AND z.data_i_czas = z_max.max_data
+
+  -- 2. Zgrupowane technologie
+  LEFT JOIN (
+    SELECT ut.usluga_id, GROUP_CONCAT(DISTINCT jp.nazwa ORDER BY jp.nazwa SEPARATOR ', ') AS technologie
+    FROM USLUGI_TECHNOLOGIE ut
+    JOIN TECHNOLOGIE jp ON jp.id = ut.technologia_id
+    GROUP BY ut.usluga_id
+  ) tech ON tech.usluga_id = u.id
+
+  -- 3. Aktualny rozmiar usługi (najnowsza data)
+  LEFT JOIN (
+    SELECT usluga_id, MAX(data_i_czas) AS max_data
+    FROM ROZMIAR_USLUGI
+    GROUP BY usluga_id
+  ) ru_max ON ru_max.usluga_id = u.id
+  LEFT JOIN ROZMIAR_USLUGI aktualny 
+    ON aktualny.usluga_id = ru_max.usluga_id AND aktualny.data_i_czas = ru_max.max_data
+
+  -- 4. Historia usługi (pobieramy np. z ostatnich 60 dni zamiast liczyć 200 rekordów)
+  LEFT JOIN ROZMIAR_USLUGI ru 
+    ON ru.usluga_id = u.id 
+    AND ru.data_i_czas >= DATE_SUB(NOW(), INTERVAL 60 DAY)
+
+  ORDER BY
+    kh.login,
+    u.nazwa,
+    ru.data_i_czas DESC;
+`);
 
     const grouped = {};
     for (const row of rows) {
