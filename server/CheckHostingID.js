@@ -1,5 +1,4 @@
 export async function CheckHostingID(db, nick,serwer) {
-  console.log('START CheckHostingID')
   const [rows] = await db.query(
     "SELECT id FROM KONTO_HOSTINGOWE WHERE login = ? and serwer_nazwa = ?",
     [nick,serwer]

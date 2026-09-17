@@ -109,7 +109,6 @@ function StronaGlowna() {
         <select
           value={filteredHostingID}
           onChange={(e) => {
-            console.log("Wybrany hosting:", e.target.value);
             setFilteredHostingID(e.target.value);
           }}
         >

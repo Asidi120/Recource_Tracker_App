@@ -54,8 +54,5 @@ export async function InsertMailInfo(db, hostingId,maile) {
       ]
     );
 
-    console.log(
-      `Dodano pomiar dla ${mail.mail}`
-    );
   }
 }

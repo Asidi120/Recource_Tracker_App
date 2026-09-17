@@ -21,9 +21,9 @@ export async function InsertDBSize(db) {
     [size]
   );
 
-  console.log(`Dodano rozmiar bazy: ${size} MB`);
+  //console.log(`Dodano rozmiar bazy: ${size} MB`);
   const results = await DBLimitPrediction(db, Number(process.env.MAX_DB_SIZE));
-  console.log(results);
+  //console.log(results);
   return results;
 }
 

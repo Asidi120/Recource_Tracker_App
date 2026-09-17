@@ -4,11 +4,10 @@ import ping from "ping";
 
 export async function InsertStatusInfo(db, hostingId, strony) {
   console.log("START InsertStatusInfo");
-  console.log("Dane z status_stron.json:", strony);
 
   for (const strona of strony) {
     const techs = await detectTech(strona.domena);
-    console.log(`Technologie wykryte dla ${strona.domena}:`, techs);
+    //console.log(`Technologie wykryte dla ${strona.domena}:`, techs);
 
     const [rows] = await db.query(
       `SELECT id
@@ -37,7 +36,6 @@ export async function InsertStatusInfo(db, hostingId, strony) {
 
       uslugaId = result.insertId;
 
-      console.log(`Dodano usługę www: ${strona.domena} (id=${uslugaId})`);
     } else {
       uslugaId = rows[0].id;
     }
@@ -68,7 +66,6 @@ export async function InsertStatusInfo(db, hostingId, strony) {
       [uslugaId, strona.rozmiar_bajty / 1024 / 1024],
     );
 
-    console.log(`Dodano pomiar dla ${strona.domena}`);
     const result = await ping.promise.probe(strona.domena);
     let status;
     let blad = null;
@@ -80,7 +77,6 @@ export async function InsertStatusInfo(db, hostingId, strony) {
       status = "offline";
       blad = result.output; // Zapisz komunikat błędu
     }
-    console.log(result);
     await db.query(
       `INSERT IGNORE INTO HISTORIA_STATUSU (
         usluga_id,
@@ -96,7 +92,7 @@ export async function InsertStatusInfo(db, hostingId, strony) {
   const [check] = await db.query(
     "SELECT COUNT(*) AS cnt FROM USLUGI WHERE typ = 'www'",
   );
-  console.log("ILE USŁUG WWW W BAZIE:", check[0].cnt);
+  //console.log("ILE USŁUG WWW W BAZIE:", check[0].cnt);
   const [check1] = await db.query(`
   SELECT *
   FROM HISTORIA_STATUSU
@@ -104,5 +100,5 @@ export async function InsertStatusInfo(db, hostingId, strony) {
   LIMIT 10
 `);
 
-  console.log("Historia statusu: ", check1);
+  //console.log("Historia statusu: ", check1);
 }

@@ -59,8 +59,5 @@ export async function InsertDataBaseInfo(db, hostingId,bazy) {
       ]
     );
 
-    console.log(
-      `Dodano pomiar dla ${baza.nazwa} (${baza.rodzaj})`
-    );
   }
 }

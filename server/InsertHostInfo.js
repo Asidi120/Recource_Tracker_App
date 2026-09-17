@@ -10,7 +10,6 @@ export async function InsertHostInfo(db,data) {
 
   // istnieje
   if (rows.length > 0) {
-    console.log("Konto już istnieje:", data.login);
     return rows[0].id;
   }
 
@@ -19,8 +18,6 @@ export async function InsertHostInfo(db,data) {
     "INSERT INTO KONTO_HOSTINGOWE (login) VALUES (?)",
     [data.login]
   );
-
-  console.log("Dodano:", data.login);
 
   return result.insertId;
 }
