@@ -4,7 +4,7 @@ import { DbConnection } from "./DbConnection.js";
 import { predictUntilEndOfYear, calculateAverageGrowth30Days, predictFullDate } from "./SizePrediction.js";
 import { fillMissingData, fillMissingResourceData, fillMissingStatusData } from "./FillMissingData.js";
 import { getHostingLimits } from "./HostingLimits.js";
-import { InsertDBSize,DBLimitPrediction } from "./GetDBSize.js";
+import { DBLimitPrediction } from "./GetDBSize.js";
 
 export function StartApi(app) {
   app.use(cors());
@@ -117,47 +117,50 @@ app.get("/api/historia_uslug", async (req, res) => {
   let db;
   try {
     db = await DbConnection();
-
-    const [uslugi] = await db.query(`
-      SELECT kh.id AS hosting_id, kh.login, u.id AS usluga_id, u.nazwa, u.typ
-      FROM KONTO_HOSTINGOWE kh
-      JOIN USLUGI u ON u.hosting_id = kh.id;
-    `);
-    const [techs] = await db.query(`
-      SELECT ut.usluga_id, GROUP_CONCAT(jp.nazwa SEPARATOR ', ') AS technologie
-      FROM USLUGI_TECHNOLOGIE ut
-      JOIN TECHNOLOGIE jp ON jp.id = ut.technologia_id
-      GROUP BY ut.usluga_id;
-    `);
-
-    const [limity] = await db.query(`
-      SELECT z.hosting_id, z.limit_dysku_mb
-      FROM ZUZYCIE_ZASOBOW z
-      JOIN (
-        SELECT hosting_id, MAX(data_i_czas) AS max_data
-        FROM ZUZYCIE_ZASOBOW
-        GROUP BY hosting_id
-      ) z_max ON z.hosting_id = z_max.hosting_id AND z.data_i_czas = z_max.max_data;
-    `);
-
-    const [historia] = await db.query(`
-      SELECT usluga_id, data_i_czas, rozmiar_mb
-      FROM ROZMIAR_USLUGI
-      WHERE data_i_czas >= DATE_SUB(NOW(), INTERVAL 3 HOUR)
-      ORDER BY usluga_id, data_i_czas DESC;
-    `);
+    // Pobranie wszystkich danych w jednym zapytaniu, aby uniknąć wielu zapytań do bazy
+    const [
+      [uslugi],
+      [techs],
+      [limity],
+      [historia]
+    ] = await Promise.all([
+      db.query(`
+        SELECT kh.id AS hosting_id, kh.login, u.id AS usluga_id, u.nazwa, u.typ
+        FROM KONTO_HOSTINGOWE kh
+        JOIN USLUGI u ON u.hosting_id = kh.id;
+      `),
+      db.query(`
+        SELECT ut.usluga_id, GROUP_CONCAT(jp.nazwa SEPARATOR ', ') AS technologie
+        FROM USLUGI_TECHNOLOGIE ut
+        JOIN TECHNOLOGIE jp ON jp.id = ut.technologia_id
+        GROUP BY ut.usluga_id;
+      `),
+      db.query(`
+        SELECT z.hosting_id, z.limit_dysku_mb
+        FROM ZUZYCIE_ZASOBOW z
+        JOIN (
+          SELECT hosting_id, MAX(data_i_czas) AS max_data
+          FROM ZUZYCIE_ZASOBOW
+          GROUP BY hosting_id
+        ) z_max ON z.hosting_id = z_max.hosting_id AND z.data_i_czas = z_max.max_data;
+      `),
+      db.query(`
+        SELECT usluga_id, data_i_czas, rozmiar_mb
+        FROM ROZMIAR_USLUGI
+        WHERE data_i_czas >= DATE_SUB(NOW(), INTERVAL 3 HOUR)
+        ORDER BY usluga_id, data_i_czas DESC;
+      `)
+    ]);
 
     const techsMap = {};
-    for (const t of techs) {
-      techsMap[t.usluga_id] = t.technologie;
-    }
+    for (const t of techs) techsMap[t.usluga_id] = t.technologie;
 
     const limityMap = {};
-    for (const l of limity) {
-      limityMap[l.hosting_id] = l.limit_dysku_mb;
-    }
+    for (const l of limity) limityMap[l.hosting_id] = l.limit_dysku_mb;
 
     const metadataMap = {};
+    const grouped = {};
+
     for (const u of uslugi) {
       metadataMap[u.usluga_id] = {
         hosting_id: u.hosting_id,
@@ -168,14 +171,10 @@ app.get("/api/historia_uslug", async (req, res) => {
         technologie: techsMap[u.usluga_id] || null,
         limit_dysku_mb: limityMap[u.hosting_id] || null
       };
+      grouped[u.usluga_id] = [];
     }
 
-    const grouped = {};
     for (const wpis of historia) {
-      if (!grouped[wpis.usluga_id]) {
-        grouped[wpis.usluga_id] = [];
-      }
-      
       const meta = metadataMap[wpis.usluga_id];
       if (meta) {
         grouped[wpis.usluga_id].push({
@@ -194,8 +193,21 @@ app.get("/api/historia_uslug", async (req, res) => {
 
     let result = [];
     for (const usluga_id in grouped) {
+      if (grouped[usluga_id].length === 0) {
+        const meta = metadataMap[usluga_id];
+        grouped[usluga_id].push({
+          ...meta,
+          data_i_czas: null,
+          rozmiar_mb: null
+        });
+      }
+
       const filled = fillMissingData(grouped[usluga_id]);
-      result.push(...filled.slice(0, 200)); 
+      
+      const sliced = filled.slice(0, 200);
+      for(const wpis of sliced) {
+        result.push(wpis);
+      }
     }
     
     res.json(result);
