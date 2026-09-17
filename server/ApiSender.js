@@ -9,9 +9,11 @@ import { InsertDBSize,DBLimitPrediction } from "./GetDBSize.js";
 export function StartApi(app) {
   app.use(cors());
   app.use(express.json());
-  app.get("/api/zasoby", async (req, res) => {
+
+app.get("/api/zasoby", async (req, res) => {
     let db;
     try {
+      console.time("API /api/zasoby - Czas wykonania");
       db = await DbConnection();
 
       const [rows] = await db.query(`
@@ -29,33 +31,21 @@ export function StartApi(app) {
             z.zuzycie_procesow,
             z.limit_procesow
         FROM KONTO_HOSTINGOWE k
+        
         JOIN (
-            SELECT
-                hosting_id,
-                data_i_czas,
-                zuzycie_cpu_procent,
-                zuzycie_ramu_mb,
-                limit_ramu_mb,
-                zuzycie_ramu_procent,
-                zuzycie_dysku_mb,
-                limit_dysku_mb,
-                zuzycie_dysku_procent,
-                zuzycie_procesow,
-                limit_procesow
-            FROM (
-                SELECT
-                    *,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY hosting_id
-                        ORDER BY data_i_czas DESC
-                    ) AS rn
-                FROM ZUZYCIE_ZASOBOW
-            ) t
-            WHERE rn = 1
-        ) z
-        ON z.hosting_id = k.id
+            SELECT hosting_id, MAX(data_i_czas) AS max_data
+            FROM ZUZYCIE_ZASOBOW
+            GROUP BY hosting_id
+        ) z_max ON z_max.hosting_id = k.id
+        
+        JOIN ZUZYCIE_ZASOBOW z 
+            ON z.hosting_id = z_max.hosting_id 
+            AND z.data_i_czas = z_max.max_data
+            
         ORDER BY k.login;
-    `);
+      `);
+      
+      console.timeEnd("API /api/zasoby - Czas wykonania");
       res.json(rows);
     } catch (err) {
       console.error(err);
@@ -135,30 +125,20 @@ export function StartApi(app) {
 app.get("/api/historia_uslug", async (req, res) => {
   let db;
   try {
-    console.time("Całkowity czas endpointu (Backend)");
     db = await DbConnection();
 
-    // 1A. Szybkie pobranie kont i usług
-    console.time("1A. Zapytanie SQL: Konta i Usługi");
     const [uslugi] = await db.query(`
       SELECT kh.id AS hosting_id, kh.login, u.id AS usluga_id, u.nazwa, u.typ
       FROM KONTO_HOSTINGOWE kh
       JOIN USLUGI u ON u.hosting_id = kh.id;
     `);
-    console.timeEnd("1A. Zapytanie SQL: Konta i Usługi");
-
-    // 1B. Technologie (wykonywane raz dla wszystkich, bez podzapytań)
-    console.time("1B. Zapytanie SQL: Technologie");
     const [techs] = await db.query(`
       SELECT ut.usluga_id, GROUP_CONCAT(jp.nazwa SEPARATOR ', ') AS technologie
       FROM USLUGI_TECHNOLOGIE ut
       JOIN TECHNOLOGIE jp ON jp.id = ut.technologia_id
       GROUP BY ut.usluga_id;
     `);
-    console.timeEnd("1B. Zapytanie SQL: Technologie");
 
-    // 1C. Najnowsze limity dysku (dzięki indeksowi idx_zasoby_data wykona się błyskawicznie)
-    console.time("1C. Zapytanie SQL: Limity");
     const [limity] = await db.query(`
       SELECT z.hosting_id, z.limit_dysku_mb
       FROM ZUZYCIE_ZASOBOW z
@@ -168,21 +148,14 @@ app.get("/api/historia_uslug", async (req, res) => {
         GROUP BY hosting_id
       ) z_max ON z.hosting_id = z_max.hosting_id AND z.data_i_czas = z_max.max_data;
     `);
-    console.timeEnd("1C. Zapytanie SQL: Limity");
 
-    // 2. Historia z ostatnich 4 godzin
-    console.time("2. Zapytanie SQL: Historia (4 godziny)");
     const [historia] = await db.query(`
       SELECT usluga_id, data_i_czas, rozmiar_mb
       FROM ROZMIAR_USLUGI
-      WHERE data_i_czas >= DATE_SUB(NOW(), INTERVAL 4 HOUR)
+      WHERE data_i_czas >= DATE_SUB(NOW(), INTERVAL 3 HOUR)
       ORDER BY usluga_id, data_i_czas DESC;
     `);
-    console.timeEnd("2. Zapytanie SQL: Historia (4 godziny)");
 
-    console.time("3. Grupowanie i formatowanie (Node.js)");
-    
-    // Błyskawiczne mapowanie (O(1)) zamiast JOIN-ów SQL
     const techsMap = {};
     for (const t of techs) {
       techsMap[t.usluga_id] = t.technologie;
@@ -234,9 +207,6 @@ app.get("/api/historia_uslug", async (req, res) => {
       result.push(...filled.slice(0, 200)); 
     }
     
-    console.timeEnd("3. Grupowanie i formatowanie (Node.js)");
-    console.timeEnd("Całkowity czas endpointu (Backend)");
-
     res.json(result);
   } catch (err) {
     console.error("Database query failed:", err);
