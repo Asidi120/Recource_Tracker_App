@@ -219,126 +219,94 @@ app.get("/api/historia_uslug", async (req, res) => {
     let db;
 
     try {
+      console.time(`API /api/historia_uslug/${req.params.id}`);
       db = await DbConnection();
-      const [rows] = await db.query(
-        `
-      SELECT
-          kh.id AS hosting_id,
-          kh.login,
-          u.id AS usluga_id,
-          u.nazwa,
-          u.typ,
-          tech.technologie,
-          aktualny.rozmiar_mb AS aktualny_rozmiar_mb,
-          ru.data_i_czas,
-          ru.rozmiar_mb,
-          z.limit_dysku_mb
-      FROM KONTO_HOSTINGOWE kh
-      JOIN USLUGI u ON u.hosting_id = kh.id
-      LEFT JOIN (
-    SELECT z1.hosting_id, z1.limit_dysku_mb
-    FROM ZUZYCIE_ZASOBOW z1
-    JOIN (
-        SELECT hosting_id, MAX(data_i_czas) AS max_data
-        FROM ZUZYCIE_ZASOBOW
-        GROUP BY hosting_id
-    ) z2
-    ON z1.hosting_id = z2.hosting_id
-    AND z1.data_i_czas = z2.max_data
-) z
-ON z.hosting_id = kh.id
-      LEFT JOIN (
-    SELECT
-        ut.usluga_id,
-        GROUP_CONCAT(jp.nazwa ORDER BY jp.nazwa SEPARATOR ', ') AS technologie
-    FROM USLUGI_TECHNOLOGIE ut
-    JOIN TECHNOLOGIE jp
-        ON jp.id = ut.technologia_id
-    GROUP BY ut.usluga_id
-) tech
-ON tech.usluga_id = u.id
-      LEFT JOIN (
-          SELECT r1.usluga_id, r1.rozmiar_mb
-          FROM ROZMIAR_USLUGI r1
-          JOIN (
-              SELECT usluga_id, MAX(data_i_czas) AS max_data
-              FROM ROZMIAR_USLUGI
-              GROUP BY usluga_id
-          ) r2 ON r1.usluga_id = r2.usluga_id AND r1.data_i_czas = r2.max_data
-      ) aktualny ON aktualny.usluga_id = u.id
-      LEFT JOIN (
-    SELECT *
-    FROM (
+      const id = req.params.id;
+
+      const [metadataRows] = await db.query(`
         SELECT
-            ru.*,
-            ROW_NUMBER() OVER (
-                PARTITION BY ru.usluga_id
-                ORDER BY ru.data_i_czas DESC
-            ) AS rn
-        FROM ROZMIAR_USLUGI ru
-        WHERE
+            kh.id AS hosting_id,
+            kh.login,
+            u.id AS usluga_id,
+            u.nazwa,
+            u.typ,
             (
-                ru.data_i_czas >= NOW() - INTERVAL 1 DAY
-            )
+                SELECT GROUP_CONCAT(jp.nazwa SEPARATOR ', ')
+                FROM USLUGI_TECHNOLOGIE ut
+                JOIN TECHNOLOGIE jp ON jp.id = ut.technologia_id
+                WHERE ut.usluga_id = u.id
+            ) AS technologie,
+            (
+                SELECT rozmiar_mb 
+                FROM ROZMIAR_USLUGI 
+                WHERE usluga_id = u.id 
+                ORDER BY data_i_czas DESC LIMIT 1
+            ) AS aktualny_rozmiar_mb,
+            (
+                SELECT limit_dysku_mb 
+                FROM ZUZYCIE_ZASOBOW 
+                WHERE hosting_id = kh.id 
+                ORDER BY data_i_czas DESC LIMIT 1
+            ) AS limit_dysku_mb
+        FROM USLUGI u
+        JOIN KONTO_HOSTINGOWE kh ON kh.id = u.hosting_id
+        WHERE u.id = ?;
+      `, [id]);
 
-            OR
-            (
-                ru.data_i_czas >= NOW() - INTERVAL 7 DAY
-                AND ru.data_i_czas < NOW() - INTERVAL 1 DAY
-                AND MINUTE(ru.data_i_czas) % 10 = 0
-            )
+      if (metadataRows.length === 0) {
+        return res.status(404).json({ error: "Nie znaleziono usługi" });
+      }
 
-            OR
-            (
-                ru.data_i_czas >= NOW() - INTERVAL 30 DAY
-                AND ru.data_i_czas < NOW() - INTERVAL 7 DAY
-                AND MINUTE(ru.data_i_czas) = 0
-            )
+      const meta = metadataRows[0];
 
-            OR
-            (
-                ru.data_i_czas >= NOW() - INTERVAL 1 YEAR
-                AND ru.data_i_czas < NOW() - INTERVAL 30 DAY
-                AND HOUR(ru.data_i_czas) IN (0,12)
-                AND MINUTE(ru.data_i_czas) = 0
-            )
+      const [historyRows] = await db.query(`
+        SELECT data_i_czas, rozmiar_mb
+        FROM ROZMIAR_USLUGI
+        WHERE usluga_id = ?
+          AND (
+            (data_i_czas >= NOW() - INTERVAL 1 DAY) OR
+            (data_i_czas >= NOW() - INTERVAL 7 DAY AND data_i_czas < NOW() - INTERVAL 1 DAY AND MINUTE(data_i_czas) % 10 = 0) OR
+            (data_i_czas >= NOW() - INTERVAL 30 DAY AND data_i_czas < NOW() - INTERVAL 7 DAY AND MINUTE(data_i_czas) = 0) OR
+            (data_i_czas >= NOW() - INTERVAL 1 YEAR AND data_i_czas < NOW() - INTERVAL 30 DAY AND HOUR(data_i_czas) IN (0,12) AND MINUTE(data_i_czas) = 0) OR
+            (data_i_czas < NOW() - INTERVAL 1 YEAR AND HOUR(data_i_czas) = 0 AND MINUTE(data_i_czas) = 0 AND MOD(DAYOFYEAR(data_i_czas),2)=0)
+          )
+        ORDER BY data_i_czas DESC;
+      `, [id]);
 
-            OR
-            (
-                ru.data_i_czas < NOW() - INTERVAL 1 YEAR
-                AND HOUR(ru.data_i_czas) = 0
-                AND MINUTE(ru.data_i_czas) = 0
-                AND MOD(DAYOFYEAR(ru.data_i_czas),2)=0
-            )
-    ) x
-) ru
-ON ru.usluga_id = u.id
-      WHERE u.id = ?
-GROUP BY
-    kh.id,
-    kh.login,
-    u.id,
-    u.nazwa,
-    u.typ,
-    tech.technologie,
-    aktualny.rozmiar_mb,
-    ru.data_i_czas,
-    ru.rozmiar_mb,
-    z.limit_dysku_mb
-    ORDER BY
-      ru.data_i_czas DESC;
-    `,
-        [req.params.id],
-      );
-      const history = rows;
-      const averageGrowth30Days = calculateAverageGrowth30Days(history);
+      const history = historyRows.map(row => ({
+        hosting_id: meta.hosting_id,
+        login: meta.login,
+        usluga_id: meta.usluga_id,
+        nazwa: meta.nazwa,
+        typ: meta.typ,
+        technologie: meta.technologie,
+        aktualny_rozmiar_mb: meta.aktualny_rozmiar_mb,
+        limit_dysku_mb: meta.limit_dysku_mb,
+        data_i_czas: row.data_i_czas,
+        rozmiar_mb: row.rozmiar_mb
+      }));
+
+      let averageGrowth30Days = 0;
+      if (history.length > 0) {
+         averageGrowth30Days = calculateAverageGrowth30Days(history);
+      }
+      
       const limitMap = await getHostingLimits();
       let predictedFullDate = null;
-      if (history[0].typ === 'serwer') {
-        predictedFullDate = predictFullDate(history[0].data_i_czas, Number(history[0].rozmiar_mb), limitMap[history[0].hosting_id], averageGrowth30Days);
+      
+      if (history.length > 0 && history[0].typ === 'serwer') {
+        predictedFullDate = predictFullDate(
+            history[0].data_i_czas, 
+            Number(history[0].rozmiar_mb), 
+            limitMap[history[0].hosting_id], 
+            averageGrowth30Days
+        );
       }
+      
       const prediction = predictUntilEndOfYear(history);
       const historyWithMissing = fillMissingData(history);
+
+      console.timeEnd(`API /api/historia_uslug/${req.params.id}`);
 
       res.json({
           historia: historyWithMissing,
@@ -346,6 +314,7 @@ GROUP BY
           srednie_wzrost: averageGrowth30Days,
           przewidziana_data_pelna: predictedFullDate
       });
+      
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Błąd serwera" });
@@ -353,6 +322,7 @@ GROUP BY
       if (db) await db.end();
     }
   });
+
   app.get("/api/historia_zasobow/:id", async (req, res) => {
     let db;
     try {
