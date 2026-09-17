@@ -13,7 +13,6 @@ export function StartApi(app) {
 app.get("/api/zasoby", async (req, res) => {
     let db;
     try {
-      console.time("API /api/zasoby - Czas wykonania");
       db = await DbConnection();
 
       const [rows] = await db.query(`
@@ -45,7 +44,6 @@ app.get("/api/zasoby", async (req, res) => {
         ORDER BY k.login;
       `);
       
-      console.timeEnd("API /api/zasoby - Czas wykonania");
       res.json(rows);
     } catch (err) {
       console.error(err);
@@ -59,7 +57,6 @@ app.get("/api/strony", async (req, res) => {
     let db;
 
     try {
-      console.time("API /api/strony - Czas wykonania");
       db = await DbConnection();
       
       const [rows] = await db.query(`
@@ -78,7 +75,6 @@ app.get("/api/strony", async (req, res) => {
         JOIN KONTO_HOSTINGOWE kh 
             ON kh.id = u.hosting_id
 
-        -- 1. Błyskawiczne pobranie najnowszej daty statusu z użyciem indeksu idx_status_data
         JOIN (
             SELECT usluga_id, MAX(data_i_czas) AS max_data
             FROM HISTORIA_STATUSU
@@ -86,12 +82,10 @@ app.get("/api/strony", async (req, res) => {
         ) hs_max 
             ON hs_max.usluga_id = u.id
 
-        -- 2. Dołączenie konkretnego, najnowszego wpisu statusu
         JOIN HISTORIA_STATUSU hs 
             ON hs.usluga_id = hs_max.usluga_id 
             AND hs.data_i_czas = hs_max.max_data
 
-        -- 3. Pobranie technologii (jak wcześniej)
         LEFT JOIN (
             SELECT
                 ut.usluga_id,
@@ -103,7 +97,6 @@ app.get("/api/strony", async (req, res) => {
         ) tech 
             ON tech.usluga_id = u.id
 
-        -- Filtrujemy od razu strony WWW, żeby nie szukać statusów dla baz danych czy poczty
         WHERE u.typ = 'www'
 
         ORDER BY
@@ -111,7 +104,6 @@ app.get("/api/strony", async (req, res) => {
             u.nazwa;
       `);
 
-      console.timeEnd("API /api/strony - Czas wykonania");
       res.json(rows);
     } catch (err) {
       console.error(err);
@@ -219,7 +211,6 @@ app.get("/api/historia_uslug", async (req, res) => {
     let db;
 
     try {
-      console.time(`API /api/historia_uslug/${req.params.id}`);
       db = await DbConnection();
       const id = req.params.id;
 
@@ -306,8 +297,6 @@ app.get("/api/historia_uslug", async (req, res) => {
       const prediction = predictUntilEndOfYear(history);
       const historyWithMissing = fillMissingData(history);
 
-      console.timeEnd(`API /api/historia_uslug/${req.params.id}`);
-
       res.json({
           historia: historyWithMissing,
           predykcja: prediction,
@@ -323,87 +312,64 @@ app.get("/api/historia_uslug", async (req, res) => {
     }
   });
 
-  app.get("/api/historia_zasobow/:id", async (req, res) => {
+app.get("/api/historia_zasobow/:id", async (req, res) => {
     let db;
     try {
+      const id = req.params.id;
+      console.time(`API /api/historia_zasobow/${id}`);
       db = await DbConnection();
+      
       const [rows] = await db.query(
         `
-      SELECT
-    z.data_i_czas,
-    z.zuzycie_cpu_procent,
-    z.zuzycie_ramu_mb,
-    z.zuzycie_dysku_mb,
-    z.zuzycie_procesow,
-    z.limit_dysku_mb
-FROM ZUZYCIE_ZASOBOW z
-WHERE
-    z.hosting_id = ?
-    AND (
-        (
-            z.data_i_czas >= NOW() - INTERVAL 1 DAY
-        )
+        SELECT data_i_czas, zuzycie_cpu_procent, zuzycie_ramu_mb, zuzycie_dysku_mb, zuzycie_procesow, limit_dysku_mb
+        FROM ZUZYCIE_ZASOBOW
+        WHERE hosting_id = ? AND data_i_czas >= NOW() - INTERVAL 1 DAY
 
-        OR
+        UNION ALL
 
-        (
-            z.data_i_czas >= NOW() - INTERVAL 7 DAY
-            AND z.data_i_czas < NOW() - INTERVAL 1 DAY
-            AND MINUTE(z.data_i_czas) % 10 = 0
-        )
+        SELECT data_i_czas, zuzycie_cpu_procent, zuzycie_ramu_mb, zuzycie_dysku_mb, zuzycie_procesow, limit_dysku_mb
+        FROM ZUZYCIE_ZASOBOW
+        WHERE hosting_id = ? 
+          AND data_i_czas >= NOW() - INTERVAL 7 DAY 
+          AND data_i_czas < NOW() - INTERVAL 1 DAY 
+          AND MINUTE(data_i_czas) % 10 = 0
 
-        OR
+        UNION ALL
 
-        (
-            z.data_i_czas >= NOW() - INTERVAL 30 DAY
-            AND z.data_i_czas < NOW() - INTERVAL 7 DAY
-            AND MINUTE(z.data_i_czas) = 0
-        )
+        SELECT data_i_czas, zuzycie_cpu_procent, zuzycie_ramu_mb, zuzycie_dysku_mb, zuzycie_procesow, limit_dysku_mb
+        FROM ZUZYCIE_ZASOBOW
+        WHERE hosting_id = ? 
+          AND data_i_czas >= NOW() - INTERVAL 30 DAY 
+          AND data_i_czas < NOW() - INTERVAL 7 DAY 
+          AND MINUTE(data_i_czas) = 0
 
-        OR
+        UNION ALL
 
-        (
-            z.data_i_czas >= NOW() - INTERVAL 1 YEAR
-            AND z.data_i_czas < NOW() - INTERVAL 30 DAY
-            AND HOUR(z.data_i_czas) IN (0, 12)
-            AND MINUTE(z.data_i_czas) = 0
-        )
+        SELECT data_i_czas, zuzycie_cpu_procent, zuzycie_ramu_mb, zuzycie_dysku_mb, zuzycie_procesow, limit_dysku_mb
+        FROM ZUZYCIE_ZASOBOW
+        WHERE hosting_id = ? 
+          AND data_i_czas >= NOW() - INTERVAL 1 YEAR 
+          AND data_i_czas < NOW() - INTERVAL 30 DAY 
+          AND HOUR(data_i_czas) IN (0, 12) 
+          AND MINUTE(data_i_czas) = 0
 
-        OR
+        UNION ALL
 
-        (
-            z.data_i_czas < NOW() - INTERVAL 1 YEAR
-            AND HOUR(z.data_i_czas) = 0
-            AND MINUTE(z.data_i_czas) = 0
-            AND MOD(DAYOFYEAR(z.data_i_czas), 2) = 0
-        )
-    )
-ORDER BY z.data_i_czas DESC;
-    `,
-        [req.params.id],
+        SELECT data_i_czas, zuzycie_cpu_procent, zuzycie_ramu_mb, zuzycie_dysku_mb, zuzycie_procesow, limit_dysku_mb
+        FROM ZUZYCIE_ZASOBOW
+        WHERE hosting_id = ? 
+          AND data_i_czas < NOW() - INTERVAL 1 YEAR 
+          AND HOUR(data_i_czas) = 0 
+          AND MINUTE(data_i_czas) = 0 
+          AND MOD(DAYOFYEAR(data_i_czas), 2) = 0
+          
+        ORDER BY data_i_czas DESC;
+        `,
+        [id, id, id, id, id]
       );
-      
-const history = rows
-const averageGrowth30Days = calculateAverageGrowth30Days(history,"zuzycie_dysku_mb");
-const prediction = predictUntilEndOfYear(history,"zuzycie_dysku_mb","zuzycie_dysku_prognoza");
 
-const historyWithMissing = fillMissingResourceData(history);
-const limitMap = await getHostingLimits();
-
-const predictedFullDate = predictFullDate(
-  history[0].data_i_czas,
-  Number(history[0].zuzycie_dysku_mb),
-  limitMap[req.params.id],
-  averageGrowth30Days
-);
-
-res.json({
-  historia: historyWithMissing,
-  predykcja: prediction,
-  srednie_wzrost: averageGrowth30Days,
-  przewidziana_data_pelna: predictedFullDate,
-});
-
+      console.timeEnd(`API /api/historia_zasobow/${id}`);
+      res.json(rows);
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Błąd serwera" });
@@ -411,6 +377,7 @@ res.json({
       if (db) await db.end();
     }
   });
+
   app.get("/api/historia_statusow/:hosting_id/:usluga_id", async (req, res) => {
     let db;
     try {
