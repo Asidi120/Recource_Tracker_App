@@ -416,8 +416,6 @@ app.get("/api/historia_zasobow/:id", async (req, res) => {
     let db;
     try {
       db = await DbConnection();
-      //console.log(req.params);
-
       const [test] = await db.query(
         `
   SELECT
@@ -512,10 +510,6 @@ ORDER BY hs.data_i_czas ASC;
       const historyWithMissing = fillMissingStatusData(rows.reverse());
 
       res.json(historyWithMissing);
-      //console.log(
-      //  "Pobrano historię statusów dla hosting_id:",
-      //  req.params.hosting_id,
-      //);
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Błąd serwera" });
