@@ -161,14 +161,14 @@ app.get("/api/historia_uslug", async (req, res) => {
     console.timeEnd("1. Zapytanie SQL: Metadane usług");
 
     // 2. Szybkie pobranie historii (dzięki idx_rozmiar_uslugi_data baza wczyta to od ręki)
-    console.time("2. Zapytanie SQL: Historia (ostatnie 60 dni)");
+    console.time("2. Zapytanie SQL: Historia (ostatnie 3 Godziny)");
     const [historia] = await db.query(`
       SELECT usluga_id, data_i_czas, rozmiar_mb
       FROM ROZMIAR_USLUGI
-      WHERE data_i_czas >= DATE_SUB(NOW(), INTERVAL 60 DAY)
+      WHERE data_i_czas >= DATE_SUB(NOW(), INTERVAL 3 HOUR)
       ORDER BY usluga_id, data_i_czas DESC;
     `);
-    console.timeEnd("2. Zapytanie SQL: Historia (ostatnie 60 dni)");
+    console.timeEnd("2. Zapytanie SQL: Historia (ostatnie 3 Godziny)");
 
     // 3. Połączenie danych w pamięci RAM serwera (zamiast powolnych JOIN-ów w SQL)
     console.time("3. Grupowanie i formatowanie (Node.js)");
