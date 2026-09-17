@@ -318,7 +318,8 @@ app.get("/api/historia_zasobow/:id", async (req, res) => {
       const id = req.params.id;
       console.time(`API /api/historia_zasobow/${id}`);
       db = await DbConnection();
-      
+
+      // Zamiana wolnych warunków OR z obliczeniami na błyskawiczne UNION ALL
       const [rows] = await db.query(
         `
         SELECT data_i_czas, zuzycie_cpu_procent, zuzycie_ramu_mb, zuzycie_dysku_mb, zuzycie_procesow, limit_dysku_mb
@@ -365,11 +366,44 @@ app.get("/api/historia_zasobow/:id", async (req, res) => {
           
         ORDER BY data_i_czas DESC;
         `,
+        // Podajemy to samo ID 5 razy (po jednym dla każdej części UNION ALL)
         [id, id, id, id, id]
       );
 
+      const history = rows;
+
+      // Zabezpieczenie, by aplikacja nie wywaliła się na history[0], gdy hosting jest zupełnie nowy i nie ma wpisów
+      if (history.length === 0) {
+        console.timeEnd(`API /api/historia_zasobow/${id}`);
+        return res.json({
+          historia: [],
+          predykcja: [],
+          srednie_wzrost: 0,
+          przewidziana_data_pelna: null,
+        });
+      }
+
+      const averageGrowth30Days = calculateAverageGrowth30Days(history, "zuzycie_dysku_mb");
+      const prediction = predictUntilEndOfYear(history, "zuzycie_dysku_mb", "zuzycie_dysku_prognoza");
+      const historyWithMissing = fillMissingResourceData(history);
+      const limitMap = await getHostingLimits();
+
+      const predictedFullDate = predictFullDate(
+        history[0].data_i_czas,
+        Number(history[0].zuzycie_dysku_mb),
+        limitMap[req.params.id],
+        averageGrowth30Days
+      );
+
       console.timeEnd(`API /api/historia_zasobow/${id}`);
-      res.json(rows);
+
+      res.json({
+        historia: historyWithMissing,
+        predykcja: prediction,
+        srednie_wzrost: averageGrowth30Days,
+        przewidziana_data_pelna: predictedFullDate,
+      });
+
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Błąd serwera" });
@@ -377,7 +411,7 @@ app.get("/api/historia_zasobow/:id", async (req, res) => {
       if (db) await db.end();
     }
   });
-
+  
   app.get("/api/historia_statusow/:hosting_id/:usluga_id", async (req, res) => {
     let db;
     try {
