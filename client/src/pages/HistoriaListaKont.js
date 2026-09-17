@@ -61,9 +61,24 @@ function HistoriaListaKont() {
   };
 
   useEffect(() => {
+    // Start głównego timera
+    console.time("Całkowity czas (API + Przetwarzanie)");
+    console.time("1. Pobieranie z API (fetch)");
+
     fetch(`/api/historia_uslug`)
-      .then((res) => res.json())
-      .then((data) => setAccounts(groupData(data)))
+      .then((res) => {
+        // Zatrzymanie timera dla samego pobierania
+        console.timeEnd("1. Pobieranie z API (fetch)");
+        return res.json();
+      })
+      .then((data) => {
+        console.time("2. Przetwarzanie danych (groupData)");
+        const processedData = groupData(data);
+        console.timeEnd("2. Przetwarzanie danych (groupData)");
+
+        setAccounts(processedData);
+        console.timeEnd("Całkowity czas (API + Przetwarzanie)");
+      })
       .catch((err) => console.error("Database error:", err));
   }, []);
 
@@ -113,6 +128,15 @@ function HistoriaListaKont() {
           Number(account.hosting_id) === Number(filteredHostingID)) &&
         account.uslugi.length > 0,
     );
+
+    // Dodaj to na samym końcu, tuż przed instrukcją return (...)
+  console.time("4. Renderowanie interfejsu i wykresów");
+  
+  useEffect(() => {
+    // Ten useEffect wykona się od razu po tym, jak React wrzuci zmiany na ekran
+    console.timeEnd("4. Renderowanie interfejsu i wykresów");
+  });
+
   return (
     <div className="container">
       <h2>Historia</h2>
