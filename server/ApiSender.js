@@ -55,11 +55,13 @@ app.get("/api/zasoby", async (req, res) => {
     }
   });
 
-  app.get("/api/strony", async (req, res) => {
+app.get("/api/strony", async (req, res) => {
     let db;
 
     try {
+      console.time("API /api/strony - Czas wykonania");
       db = await DbConnection();
+      
       const [rows] = await db.query(`
         SELECT
             hs.id,
@@ -72,30 +74,25 @@ app.get("/api/zasoby", async (req, res) => {
             hs.status,
             hs.ping_ms,
             hs.blad
-        FROM
-        (
-            SELECT *
-            FROM
-            (
-                SELECT
-                    *,
-                    ROW_NUMBER() OVER(
-                        PARTITION BY usluga_id
-                        ORDER BY data_i_czas DESC
-                    ) rn
-                FROM HISTORIA_STATUSU
-            ) t
-            WHERE rn = 1
-        ) hs
+        FROM USLUGI u
+        JOIN KONTO_HOSTINGOWE kh 
+            ON kh.id = u.hosting_id
 
-        JOIN USLUGI u
-        ON u.id = hs.usluga_id
+        -- 1. Błyskawiczne pobranie najnowszej daty statusu z użyciem indeksu idx_status_data
+        JOIN (
+            SELECT usluga_id, MAX(data_i_czas) AS max_data
+            FROM HISTORIA_STATUSU
+            GROUP BY usluga_id
+        ) hs_max 
+            ON hs_max.usluga_id = u.id
 
-        JOIN KONTO_HOSTINGOWE kh
-        ON kh.id = u.hosting_id
+        -- 2. Dołączenie konkretnego, najnowszego wpisu statusu
+        JOIN HISTORIA_STATUSU hs 
+            ON hs.usluga_id = hs_max.usluga_id 
+            AND hs.data_i_czas = hs_max.max_data
 
-        LEFT JOIN
-        (
+        -- 3. Pobranie technologii (jak wcześniej)
+        LEFT JOIN (
             SELECT
                 ut.usluga_id,
                 GROUP_CONCAT(jp.nazwa ORDER BY jp.nazwa SEPARATOR ', ') AS technologie
@@ -103,16 +100,18 @@ app.get("/api/zasoby", async (req, res) => {
             JOIN TECHNOLOGIE jp
                 ON jp.id = ut.technologia_id
             GROUP BY ut.usluga_id
-        ) tech
-        ON tech.usluga_id = u.id
+        ) tech 
+            ON tech.usluga_id = u.id
 
-        WHERE u.typ='www'
+        -- Filtrujemy od razu strony WWW, żeby nie szukać statusów dla baz danych czy poczty
+        WHERE u.typ = 'www'
 
         ORDER BY
             kh.login,
             u.nazwa;
-    `);
+      `);
 
+      console.timeEnd("API /api/strony - Czas wykonania");
       res.json(rows);
     } catch (err) {
       console.error(err);
